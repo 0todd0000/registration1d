@@ -113,7 +113,7 @@ Proposed layout:
     tests/test_slow.py          groups 2 (matrix), 7, 9  (marked slow)
     tests/test_plot.py          group 8
 
-GitHub Actions: a matrix over Python 3.9-3.12 and Linux / macOS running the
+GitHub Actions: a matrix over Python 3.10-3.13 and Linux / macOS running the
 fast tiers on every push, the slow tier and the notebook build nightly or
 on pull requests, and a separate job that installs `fdasrsf` and
 `dtw-python` and runs the reference-agreement tests.

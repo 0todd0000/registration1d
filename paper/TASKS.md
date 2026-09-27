@@ -47,7 +47,7 @@ Three of them shape the plan more than anything else and are put first.
     ├── .gitignore
     ├── .github/
     │   ├── workflows/
-    │   │   ├── tests.yml           GitHub Actions: pytest on Linux + macOS, Python 3.9-3.13, on push/PR
+    │   │   ├── tests.yml           GitHub Actions: pytest on Linux (+ macOS later), Python 3.10-3.13, on push/PR
     │   │   ├── notebooks.yml       execute notebooks weekly / on release (slow tier)
     │   │   └── docs.yml            build the documentation site
     │   ├── ISSUE_TEMPLATE/         bug report, feature request (issue tracker must be open)
@@ -106,7 +106,8 @@ Notes on the structure:
 ## 3. Tests and continuous integration (GitHub Actions)
 
 - [ ] Split `tests/test_reg1d.py` into the tiers of TESTS.md; add the edge-case, plotting and reference-agreement groups (the latter `importorskip`-guarded for `fdasrsf` and `dtw-python`).
-- [ ] GitHub Actions matrix: Linux and macOS × Python 3.9–3.13; fast tier on every push, slow tier and notebook execution nightly or on release.
+- [x] GitHub Actions: Linux × Python 3.10–3.13 on every push / pull request (`run_tests.yml`).
+- [ ] Add macOS to the matrix; slow tier and notebook execution nightly or on release.
 - [ ] Coverage report (pytest-cov) with a badge; aim for > 90 % of the package.
 - [ ] A test that executes every `examples/*.py`.
 
