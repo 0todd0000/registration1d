@@ -335,8 +335,8 @@ def _align_one(args):
 # group alignment (Karcher mean template)
 # ---------------------------------------------------------------------
 
-def align_group(y, template='karcher', method='mean', max_iter=20, tol=1e-3, center=True,
-    max_step=6, nsub=4, lam=0.0, band=None, smooth=0, refine=False, parallel=False, verbose=False):
+def align_group(y, template='karcher', method='mean', max_iter=20, tol=1e-3, center=True, anchor=None,
+    max_step=6, nsub=4, lam='auto', band=None, smooth=0, refine=False, parallel=False, verbose=False):
     """
     Elastically register a set of observations to a common template.
 
@@ -351,11 +351,17 @@ def align_group(y, template='karcher', method='mean', max_iter=20, tol=1e-3, cen
                   Weiszfeld iteration as in fdasrsf's srsf_align(method="median"))
     *max_iter*  : maximum number of template updates (karcher only)
     *tol*       : stop when the relative change in the template is below tol
-    *center*    : if True, the warps are centered so that their Karcher mean
-                  is the identity, and the registered observations and the
-                  template are recomputed accordingly (matches the default
-                  behaviour of fdasrsf's srsf_align with center=True)
-    *max_step*, *nsub*, *lam*, *band* : see align_srsf_pair
+    *center*    : 'karcher' (default; also True), 'pointwise', 'anchor' or
+                  'none' (also False): how the common time axis of the
+                  registered data is chosen, see warp.center_warps. With
+                  'karcher' the Karcher mean of the warps is the identity
+                  (as in fdasrsf's srsf_align with center=True)
+    *anchor*    : (J,) event times (normalised original time) for center='anchor'
+    *lam*       : elasticity penalty; 'auto' (default) sets lam to the median
+                  SRSF energy (= median total variation) of the observations,
+                  see auto_lam; a number sets it explicitly (0 = none, the
+                  fdasrsf default)
+    *max_step*, *nsub*, *band* : see align_srsf_pair
     *smooth*    : see srsf
     *refine*    : see refine_warp
     *parallel*  : False, True (all cores) or an integer number of worker processes
@@ -367,10 +373,13 @@ def align_group(y, template='karcher', method='mean', max_iter=20, tol=1e-3, cen
         'q'        : (J,Q[,D]) SRSFs of the registered observations
         'niter'    : number of iterations
         'cost'     : sum of squared SRSF distances to the template at each iteration
+        'lam'      : the penalty actually used
+        'center'   : the centering method actually used
     """
     y     = np.asarray(y, dtype=float)
     if y.ndim == 1:
         y = y[None, :]
+    center = _warp.resolve_center(center, 'karcher')
     mv    = y.ndim == 3
     J, Q  = y.shape[:2]
     t     = _warp.grid(Q)
@@ -393,6 +402,9 @@ def align_group(y, template='karcher', method='mean', max_iter=20, tol=1e-3, cen
     else:
         tmpl    = np.asarray(template, dtype=float)
         mq, mf0 = (srsf_mv(tmpl, smooth) if mv else srsf(tmpl, smooth=smooth)), f0(tmpl)
+    # --- data-adaptive penalty
+    if isinstance(lam, str) and lam == 'auto':
+        lam = auto_lam(q, mq, t)
     # --- alignment of all observations to the current template
     pool = None
     if parallel:
@@ -432,15 +444,44 @@ def align_group(y, template='karcher', method='mean', max_iter=20, tol=1e-3, cen
         if pool is not None:
             pool.shutdown()
     # --- center the warps
-    if center and J > 1:
-        gam, gmean = _warp.center_warps(gam)
+    if center != 'none' and J > 1:
+        gam, gmean = _warp.center_warps(gam, method=center, anchor=anchor)
         mq         = warp_srsf(mq, _warp.invert(gmean))
     yr    = np.array([_apply_warp_any(y[i], gam[i])  for i in range(J)])
     qn    = np.array([warp_srsf(q[i], gam[i])  for i in range(J)])
     if not fixed:
         mf0 = f0(yr).mean(axis=0)
     mf    = srsf_inverse_mv(mq, mf0) if mv else srsf_inverse(mq, mf0)
-    return dict(y=yr, warps=gam, template=mf, q=qn, niter=niter, cost=np.array(costs))
+    return dict(y=yr, warps=gam, template=mf, q=qn, niter=niter, cost=np.array(costs), lam=lam, center=center)
+
+
+def auto_lam(q, mq=None, t=None):
+    """
+    Data-adaptive elasticity penalty:  the median over observations of the
+    SRSF energy
+
+        lam = median_i  int q_i(t)^2 dt  =  median_i  int |f_i'(t)| dt ,
+
+    i.e. the median total variation of the observations, which is the scale
+    of the alignment cost itself (the squared SRSF distance between two
+    observations is at most the sum of their energies).
+
+    Rationale: the penalty term  lam * int (sqrt(gamma') - 1)^2 dt  then
+    charges a warp in proportion to the total variation of the data, so a
+    warp is only accepted where it buys a cost reduction that is a
+    non-negligible fraction of the total signal; noise-driven warps in flat
+    regions (whose cost reductions are a small fraction of the total) are
+    suppressed, while the alignment of genuine features (large cost
+    reductions) is retained. On the simulated datasets of the nlreg1d paper
+    this rule removes the spurious timing effect of dataset A and keeps the
+    genuine one of dataset B; on the Dorn2012 data it leaves the warps
+    essentially unchanged relative to lam = 0.
+    """
+    q  = np.asarray(q, dtype=float)
+    Q  = q.shape[1]
+    t  = _warp.grid(Q) if t is None else t
+    q2 = q**2 if q.ndim == 2 else (q**2).sum(axis=-1)
+    return float(np.median(integrate.trapezoid(q2, t, axis=-1)))
 
 
 def srsf_inverse_mv(q, y0=0.0):
@@ -457,24 +498,25 @@ def srsf_inverse_mv(q, y0=0.0):
 # ---------------------------------------------------------------------
 
 def amplitude_distance(y1, y2, **kwargs):
-    '''
+    """
     Elastic amplitude distance:  min_gamma || q1 - (q2 o gamma) sqrt(gamma') ||
-    '''
+    (unpenalised alignment unless lam is given).
+    """
     q1  = srsf(y1)
     q2  = srsf(y2)
     gam = align_srsf_pair(q1, q2, **kwargs)
-    t   = _warp.grid(q1.size)
+    t   = _warp.grid(q1.shape[0])
     return float(np.sqrt(integrate.trapezoid((q1 - warp_srsf(q2, gam))**2, t)))
 
 
 def phase_distance(y1, y2, **kwargs):
-    '''
+    """
     Elastic phase distance:  arccos( int sqrt(gamma*') dt ),  the geodesic
     distance on the sphere between the optimal warp and the identity.
-    '''
+    """
     q1  = srsf(y1)
     q2  = srsf(y2)
     gam = align_srsf_pair(q1, q2, **kwargs)
-    t   = _warp.grid(q1.size)
+    t   = _warp.grid(q1.shape[0])
     c   = np.clip(integrate.trapezoid(_warp.warp_to_psi(gam), t), -1, 1)
     return float(np.arccos(c))

@@ -83,13 +83,15 @@ def align_pair(mu, y, n_basis=4, lam=1e-2, c0=None):
     return (yw - b) / a, g, (a, b), c
 
 
-def align_group(y, n_basis=4, lam=1e-2, max_iter=5, tol=1e-4, center=True, verbose=False):
+def align_group(y, n_basis=4, lam=1e-2, max_iter=5, tol=1e-4, center=True, anchor=None, verbose=False):
     '''
     Self-modelling registration of a (J,Q) array.
 
+    *center* : 'karcher' (default, = True) | 'pointwise' | 'anchor' | 'none' (= False)
+
     Returns a dict with keys 'y' (registered observations y_i(gamma_i), amplitude
     NOT removed), 'warps', 'template' (shape function mu), 'amplitude' ((J,2)
-    array of (a_i, b_i)), 'niter'.
+    array of (a_i, b_i)), 'niter', 'center'.
     '''
     y     = np.atleast_2d(np.asarray(y, dtype=float))
     J, Q  = y.shape
@@ -110,7 +112,8 @@ def align_group(y, n_basis=4, lam=1e-2, max_iter=5, tol=1e-4, center=True, verbo
             print(f'iteration {it+1}: relative change in shape function = {change:.3g}')
         if change < tol:
             break
-    if center and J > 1:
-        gam, _ = _warp.center_warps(gam)
+    center = _warp.resolve_center(center, 'karcher')
+    if center != 'none' and J > 1:
+        gam, _ = _warp.center_warps(gam, method=center, anchor=anchor)
     yr = np.array([_warp.apply_warp(y[i], gam[i])  for i in range(J)])
-    return dict(y=yr, warps=gam, template=mu, amplitude=ab, coef=coef, niter=niter)
+    return dict(y=yr, warps=gam, template=mu, amplitude=ab, coef=coef, niter=niter, center=center)

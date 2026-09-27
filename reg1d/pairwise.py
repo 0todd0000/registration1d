@@ -33,11 +33,15 @@ from . import continuous as _continuous
 
 
 
-def align_group(y, engine='srsf', **kwargs):
+def align_group(y, engine='srsf', center=True, anchor=None, **kwargs):
     '''
     Pairwise synchronisation of a (J,Q) array.
 
     *engine* : 'srsf' | 'dtw' | 'continuous'  (keyword arguments are passed on)
+    *center* : 'karcher' (default, = True) | 'pointwise' | 'anchor' | 'none' (= False).
+               Pairwise synchronisation is template-free, so its warps are already
+               centred in the sense of Tang & Müller (the mean of the pairwise warps
+               is close to the identity); Karcher centring makes this exact.
 
     Returns a dict with keys 'y', 'warps', 'template' (cross-sectional mean of
     the synchronised observations), 'pairwise' ((J,J,Q) array of pairwise warps).
@@ -60,5 +64,8 @@ def align_group(y, engine='srsf', **kwargs):
                 continue
             G[i, j] = pair(y[j], y[i])          # warp taking observation i onto observation j
     gam = np.array([_warp.karcher_mean_warp(G[i])  for i in range(J)])
+    center = _warp.resolve_center(center, 'karcher')
+    if center != 'none' and J > 1:
+        gam, _ = _warp.center_warps(gam, method=center, anchor=anchor)
     yr  = np.array([_warp.apply_warp(y[i], gam[i])  for i in range(J)])
-    return dict(y=yr, warps=gam, template=yr.mean(axis=0), pairwise=G)
+    return dict(y=yr, warps=gam, template=yr.mean(axis=0), pairwise=G, center=center)

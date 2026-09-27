@@ -123,7 +123,7 @@ def align_pair(y_template, y, n_basis=4, lam=1e-2, c0=None, c_max=3.0):
 
 
 def align_group(y, template='mean', n_basis=4, lam=1e-2, max_iter=5, tol=1e-4,
-    center=True, verbose=False):
+    center=True, anchor=None, verbose=False):
     '''
     Register a set of observations with smooth parametric warps
     (Procrustes iteration on the cross-sectional mean).
@@ -133,7 +133,8 @@ def align_group(y, template='mean', n_basis=4, lam=1e-2, max_iter=5, tol=1e-4,
                  integer index (fixed), or a (Q,) array (fixed)
     *n_basis*  : number of sine basis functions for W = log gamma'
     *lam*      : roughness penalty (dimensionless; 0 = none)
-    *center*   : center the warps so that their Karcher mean is the identity
+    *center*   : 'karcher' (default, = True) | 'pointwise' | 'anchor' | 'none' (= False); see warp.center_warps
+    *anchor*   : (J,) event times for center='anchor'
 
     Returns a dict with keys 'y', 'warps', 'template', 'coef', 'niter'.
     '''
@@ -164,9 +165,10 @@ def align_group(y, template='mean', n_basis=4, lam=1e-2, max_iter=5, tol=1e-4,
         tmpl   = new
         if change < tol:
             break
-    if center and J > 1:
-        gam, _ = _warp.center_warps(gam)
+    center = _warp.resolve_center(center, 'karcher')
+    if center != 'none' and J > 1:
+        gam, _ = _warp.center_warps(gam, method=center, anchor=anchor)
     yr = np.array([_warp.apply_warp(y[i], gam[i])  for i in range(J)])
     if not fixed:
         tmpl = yr.mean(axis=0)
-    return dict(y=yr, warps=gam, template=tmpl, coef=coef, niter=niter)
+    return dict(y=yr, warps=gam, template=tmpl, coef=coef, niter=niter, center=center)

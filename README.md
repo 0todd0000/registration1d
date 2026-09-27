@@ -42,6 +42,9 @@ registration package needs to be installed.
 
 All functions return a `RegistrationResult` (`islinear` tells linear from
 nonlinear); multivariate (J,Q,D) input is supported by `register_srsf`.
+Every nonlinear method takes `center=` ('karcher' | 'pointwise' | 'anchor' |
+'none'; see the WarpCentering notebook) and `register_srsf` uses a
+data-adaptive elasticity penalty (`lam='auto'`; `lam=0` reproduces fdasrsf).
 Observations of different lengths can be registered in **real time**
 without prior resampling by passing them as a list with their sampling
 interval, e.g. `register_srsf(ylist, t='fs=1000')` (see `reg1d.realtime`

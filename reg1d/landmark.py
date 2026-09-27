@@ -115,7 +115,8 @@ def peaks_as_landmarks(y, n_peaks, **kwargs):
     return np.sort(t[top])
 
 
-def align_group(y, landmarks=None, targets='mean', kind='pchip', kinds=('min', 'zero', 'max')):
+def align_group(y, landmarks=None, targets='mean', kind='pchip', kinds=('min', 'zero', 'max'),
+    center=False, anchor=None):
     '''
     Landmark-register a set of observations.
 
@@ -125,8 +126,14 @@ def align_group(y, landmarks=None, targets='mean', kind='pchip', kinds=('min', '
     *targets*    : 'mean' (mean landmark times across observations),
                    'median', or a (K,) array of target times
     *kind*       : interpolation of the warp between landmarks ('pchip' or 'linear')
+    *center*     : 'none' (default, = False) | 'karcher' | 'pointwise' | 'anchor'.
+                   With targets='mean' the landmarks are moved to their MEAN
+                   times, which already anchors the registered data to the
+                   average timing of the sample at the landmarks (the 'anchor'
+                   convention); other centering methods move the landmarks
+                   off their targets and are offered for comparison only.
 
-    Returns a dict with keys 'y', 'warps', 'landmarks', 'targets'.
+    Returns a dict with keys 'y', 'warps', 'landmarks', 'targets', 'center'.
     '''
     y   = np.atleast_2d(np.asarray(y, dtype=float))
     J, Q = y.shape
@@ -137,5 +144,8 @@ def align_group(y, landmarks=None, targets='mean', kind='pchip', kinds=('min', '
         targets = landmarks.mean(axis=0) if targets == 'mean' else np.median(landmarks, axis=0)
     targets = np.asarray(targets, dtype=float)
     gam = np.array([landmark_warp(lm, targets, Q, kind)  for lm in landmarks])
+    center = _warp.resolve_center(center, 'none')
+    if center != 'none' and J > 1:
+        gam, _ = _warp.center_warps(gam, method=center, anchor=anchor)
     yr  = np.array([_warp.apply_warp(y[i], gam[i])  for i in range(J)])
-    return dict(y=yr, warps=gam, landmarks=landmarks, targets=targets)
+    return dict(y=yr, warps=gam, landmarks=landmarks, targets=targets, center=center)

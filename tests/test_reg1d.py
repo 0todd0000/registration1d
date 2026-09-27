@@ -379,3 +379,43 @@ def test_realtime_dtw_and_landmark():
     assert r.y.shape == (8, 101) and np.argmax(r.y, axis=1).std() <= 1.0
     with pytest.raises(RuntimeError):
         reg1d.register_dtw(list(d.y), t=0.001, step_pattern='strict', max_iter=1)
+
+
+# ------------------------------------------------------------------ centering options and auto lam
+
+@pytest.mark.parametrize('method,kw', [('srsf', dict(max_iter=2)), ('dtw', dict(step_pattern='strict', smooth=0.03, max_iter=2)),
+                                       ('continuous', dict(max_iter=2)), ('sim', dict(max_iter=2)), ('pairwise', {})])
+def test_centering_options(dorn, method, kw):
+    yi, group = dorn
+    for c in ('karcher', 'pointwise', 'anchor', 'none'):
+        r = reg1d.register(yi, method, center=c, anchor='max', **kw)
+        g = r.warps.asarray()
+        assert r.info['center'] == c
+        if c == 'karcher':
+            assert np.abs(warp.karcher_mean_warp(g) - t).max() < 5e-3
+        if c == 'pointwise':
+            assert np.abs(g.mean(axis=0) - t).max() < 1e-9
+        if c == 'anchor':
+            assert abs(np.argmax(r.y, axis=1).mean() - np.argmax(yi, axis=1).mean()) <= 1.0
+    r_true  = reg1d.register(yi, method, center=True, **kw)
+    r_false = reg1d.register(yi, method, center=False, **kw)
+    assert r_true.info['center'] == ('pointwise' if method == 'dtw' else 'karcher')
+    assert r_false.info['center'] == 'none'
+
+
+def test_dtw_default_pointwise_and_landmark_default_none(dorn):
+    yi, group = dorn
+    assert reg1d.register_dtw(yi, max_iter=1).info['center'] == 'pointwise'
+    assert reg1d.register_landmark(yi, kinds=('zero', 'max')).info['center'] == 'none'
+    assert reg1d.register_bayes(yi[:2], n_samples=20, burn=20, random_state=0, max_iter=1).info['center'] == 'karcher'
+
+
+def test_auto_lam():
+    A   = reg1d.data.SimulatedA()
+    r   = reg1d.register_srsf(A.y, max_iter=3)
+    assert 40 < r.info['lam'] < 60                         # median total variation of the observations
+    assert np.isclose(r.info['lam'], srsf.auto_lam(srsf.srsf(A.y)))
+    r0  = reg1d.register_srsf(A.y, max_iter=3, lam=0)
+    assert r0.info['lam'] == 0
+    # the penalty suppresses the noise-driven warps in the flat tails of dataset A
+    assert np.abs(r.displacement_fields[:, :15]).max() < np.abs(r0.displacement_fields[:, :15]).max()

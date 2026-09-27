@@ -244,17 +244,80 @@ def smooth_warp(w, sigma):
     return psi_to_warp(psi)
 
 
-def center_warps(w):
-    '''
-    Center a set of warps so that their Karcher mean is the identity.
+CENTER_METHODS = ('karcher', 'pointwise', 'anchor', 'none')
 
-    Returns (w_centered, w_mean) where  w_centered[i] = w[i] o w_mean^{-1}.
-    Applying w_centered to the raw observations yields registered
-    observations whose average timing matches the average timing of the
-    original data, rather than that of an arbitrary template.
-    '''
+
+def resolve_center(center, default='karcher'):
+    """
+    Normalise the *center* keyword of the registration functions:
+    True -> *default*, False / None -> 'none', a string -> itself.
+    """
+    if center is True:
+        return default
+    if center is False or center is None:
+        return 'none'
+    center = str(center).lower()
+    if center not in CENTER_METHODS:
+        raise ValueError(f"center must be one of {CENTER_METHODS}, True or False; got {center!r}")
+    return center
+
+
+def center_warps(w, method='karcher', anchor=None):
+    """
+    Center a set of warps by composing each with the inverse of a common
+    reference warp:  w_centered[i] = w[i] o w_ref^{-1}.
+
+    All choices leave the RELATIVE alignment of the observations unchanged
+    (every registered observation is re-warped by the same w_ref^{-1}); they
+    differ only in the common time axis on which the registered data and
+    the displacement fields are reported.
+
+    *method* :
+        'karcher'   w_ref = Karcher mean of the warps under the Fisher-Rao
+                    metric (mean of sqrt(gamma') on the unit sphere). After
+                    centering the Karcher mean of the warps is the identity,
+                    i.e. the registered data have the average timing of the
+                    original data. Requires invertible (strictly increasing)
+                    warps; the default for the diffeomorphic methods.
+        'pointwise' w_ref = arithmetic (pointwise) mean of the warps. Also
+                    well defined for warps with flat segments (e.g. raw
+                    dynamic time warping paths); the default for DTW.
+        'anchor'    w_ref chosen so that a user-specified event keeps its
+                    mean time: *anchor* is a (J,) array with the time (in
+                    normalised original time of each observation) of the
+                    event; w_ref is the monotone (PCHIP) warp that maps the
+                    mean registered anchor time to the mean original anchor
+                    time, so that after centering the event keeps its mean time.
+        'none'      no centering (w_ref = identity); the registered data
+                    keep the time axis of the template.
+
+    Returns (w_centered, w_ref).
+    """
     w    = np.atleast_2d(np.asarray(w, dtype=float))
-    wm   = karcher_mean_warp(w)
+    J, Q = w.shape
+    t    = grid(Q)
+    if method in ('none', None, False):
+        return w.copy(), t.copy()
+    if method == 'karcher':
+        wm = karcher_mean_warp(w)
+    elif method == 'pointwise':
+        wm = normalize_warp(w.mean(axis=0))
+    elif method == 'anchor':
+        if anchor is None:
+            raise ValueError("center='anchor' requires the *anchor* times (one per observation)")
+        a    = np.asarray(anchor, dtype=float)
+        if a.shape != (J,):
+            raise ValueError(f'anchor must have shape ({J},)')
+        b    = np.array([np.interp(a[i], w[i], t)  for i in range(J)])      # registered anchor times, gamma^-1(a)
+        abar, bbar = float(a.mean()), float(b.mean())
+        from scipy import interpolate
+        # after centering, w_c[i] = w[i] o wm^{-1}, so the anchor's registered time
+        # becomes wm(b_i); wm is chosen with wm(bbar) = abar
+        x    = np.array([0.0, bbar, 1.0])
+        v    = np.array([0.0, abar, 1.0])
+        wm   = normalize_warp(interpolate.PchipInterpolator(x, v)(t))
+    else:
+        raise ValueError(f'unknown centering method {method!r}')
     wmi  = invert(wm)
     wc   = np.array([compose(ww, wmi)  for ww in w])
     return wc, wm
@@ -389,8 +452,8 @@ class Warp1DList(list):
     def asarray(self):
         return np.array([w.w  for w in self])
 
-    def center(self):
-        wc,_ = center_warps(self.asarray())
+    def center(self, method='karcher', anchor=None):
+        wc,_ = center_warps(self.asarray(), method=method, anchor=anchor)
         return Warp1DList(wc)
 
     def displacement(self):

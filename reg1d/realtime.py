@@ -150,7 +150,7 @@ def _srsf_realtime(yy, dt, smooth):
 
 
 def align_group_srsf(y, t=None, n_ref=101, T_ref=None, template='karcher', method='mean',
-    max_iter=20, tol=1e-3, center=True, max_step=6, nsub=4, lam=0.0, band=None, smooth=0,
+    max_iter=20, tol=1e-3, center=True, anchor=None, max_step=6, nsub=4, lam='auto', band=None, smooth=0,
     verbose=False):
     '''
     Real-time elastic registration of observations of different lengths.
@@ -191,6 +191,9 @@ def align_group_srsf(y, t=None, n_ref=101, T_ref=None, template='karcher', metho
         if tmpl.shape[0] != n_ref:
             raise ValueError('an explicit template must be sampled on the reference axis (n_ref points)')
         mq = _srsf_realtime(tmpl, dtr, smooth)
+    center = _warp.resolve_center(center, 'karcher')
+    if isinstance(lam, str) and lam == 'auto':
+        lam = _srsf.auto_lam(qref, mq, tau)     # energies of the linearly rescaled SRSFs (same scale as the DP cost)
     # --- iterate
     gam   = np.zeros((J, n_ref))
     costs = []
@@ -220,11 +223,11 @@ def align_group_srsf(y, t=None, n_ref=101, T_ref=None, template='karcher', metho
         mq     = mq_new
         if change < tol:
             break
-    if center and J > 1:
-        gam, gmean = _warp.center_warps(gam)
+    if center != 'none' and J > 1:
+        gam, gmean = _warp.center_warps(gam, method=center, anchor=anchor)
         mq         = _srsf.warp_srsf(mq, _warp.invert(gmean))
     qn   = np.array([_warp_q_realtime(q[i], gam[i], durations[i], Tr)  for i in range(J)])
-    out  = _package(ylist, tlist, durations, tau, gam, None, dict(q=qn, niter=niter, cost=np.array(costs)))
+    out  = _package(ylist, tlist, durations, tau, gam, None, dict(q=qn, niter=niter, cost=np.array(costs), lam=lam, center=center))
     f0   = out['y'][:, 0].mean(axis=0)
     out['template'] = _srsf_inverse_realtime(mq, f0, dtr)
     return out
@@ -264,7 +267,8 @@ def _srsf_inverse_realtime(q, f0, dt):
 # ---------------------------------------------------------------------
 
 def align_group_dtw(y, t=None, n_ref=101, T_ref=None, template='mean', max_iter=10, tol=1e-4,
-    step_pattern='symmetric2', window=None, p=2, derivative=False, smooth=0.0, verbose=False):
+    step_pattern='symmetric2', window=None, p=2, derivative=False, smooth=0.0, center=True, anchor=None,
+    verbose=False):
     '''
     Real-time DTW registration: each observation (own grid, n_i points) is
     aligned to the template on the reference axis (n_ref points); with
@@ -314,7 +318,11 @@ def align_group_dtw(y, t=None, n_ref=101, T_ref=None, template='mean', max_iter=
         tmpl   = new
         if change < tol:
             break
-    return _package(ylist, tlist, durations, tau, gam, tmpl, dict(distance=dist, niter=niter))
+    center = _warp.resolve_center(center, 'pointwise')
+    if center != 'none' and J > 1:
+        gam, gref = _warp.center_warps(gam, method=center, anchor=anchor)
+        tmpl      = _warp.apply_warp(tmpl, _warp.invert(gref))
+    return _package(ylist, tlist, durations, tau, gam, tmpl, dict(distance=dist, niter=niter, center=center))
 
 
 
@@ -323,7 +331,7 @@ def align_group_dtw(y, t=None, n_ref=101, T_ref=None, template='mean', max_iter=
 # ---------------------------------------------------------------------
 
 def align_group_landmark(y, t=None, n_ref=101, T_ref=None, landmarks=None, targets='mean',
-    kind='pchip', kinds=('min', 'zero', 'max')):
+    kind='pchip', kinds=('min', 'zero', 'max'), center=False, anchor=None):
     '''
     Real-time landmark registration: landmarks are given (or detected) in
     each observation's own time units; targets are their mean (or median)
@@ -353,4 +361,7 @@ def align_group_landmark(y, t=None, n_ref=101, T_ref=None, landmarks=None, targe
             raise ValueError('landmarks and targets must be strictly increasing and inside the domain')
         G = np.interp(tau, x, v) if kind == 'linear' else interpolate.PchipInterpolator(x, v)(tau)
         gam[i] = _warp.normalize_warp(G / durations[i])
-    return _package(ylist, tlist, durations, tau, gam, None, dict(landmarks=landmarks, targets=targets))
+    center = _warp.resolve_center(center, 'none')
+    if center != 'none' and J > 1:
+        gam, _ = _warp.center_warps(gam, method=center, anchor=anchor)
+    return _package(ylist, tlist, durations, tau, gam, None, dict(landmarks=landmarks, targets=targets, center=center))

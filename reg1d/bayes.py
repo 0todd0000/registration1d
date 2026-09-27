@@ -186,7 +186,7 @@ def summarize(samples, alpha=0.05):
 
 
 def align_group(y, template='srsf', n_samples=1000, burn=500, thin=1, K=8, tau=0.3, beta=0.05,
-    init='dp', n_eff=None, smooth=0, random_state=None, verbose=False, **srsf_kwargs):
+    init='dp', n_eff=None, smooth=0, center=True, anchor=None, random_state=None, verbose=False, **srsf_kwargs):
     '''
     Bayesian registration of a set of observations to a common template.
 
@@ -196,6 +196,10 @@ def align_group(y, template='srsf', n_samples=1000, burn=500, thin=1, K=8, tau=0
                  hierarchical template update).
     *init*     : 'dp' (start each chain at the projection of the dynamic
                  programming warp) or 'identity'
+    *center*   : 'karcher' (default, = True) | 'pointwise' | 'anchor' | 'none'.
+                 The reference warp is computed from the posterior-MEAN warps
+                 and applied to the means and to every posterior sample, so
+                 the credible bands are reported on the same common axis.
     Other arguments as in sample_pair.
 
     Returns a dict with keys 'y' (registered with the posterior-mean warps),
@@ -227,7 +231,13 @@ def align_group(y, template='srsf', n_samples=1000, burn=500, thin=1, K=8, tau=0
             print(f'observation {i+1}/{J}: acceptance rate = {s["accept"]:.2f}')
     samples = np.array(samples)
     wmean   = np.array([_warp.karcher_mean_warp(s)  for s in samples])
+    center  = _warp.resolve_center(center, 'karcher')
+    if center != 'none' and J > 1:
+        wmean, gref = _warp.center_warps(wmean, method=center, anchor=anchor)
+        gi          = _warp.invert(gref)
+        samples     = np.array([[_warp.compose(w, gi)  for w in s]  for s in samples])
+        tmpl        = _srsf._apply_warp_any(tmpl, gi)
     yr      = np.array([_srsf._apply_warp_any(y[i], wmean[i])  for i in range(J)])
     disp_ci = np.array([summarize(s)['disp_ci']  for s in samples])
     return dict(y=yr, warps=wmean, template=tmpl, samples=samples, sigma2=np.array(sig2),
-        accept=np.array(acc), disp_ci=disp_ci)
+        accept=np.array(acc), disp_ci=disp_ci, center=center)

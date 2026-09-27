@@ -161,7 +161,7 @@ def align_pair(y_template, y, step_pattern='symmetric2', window=None, p=2, deriv
 
 
 def align_group(y, template='mean', max_iter=10, tol=1e-4, step_pattern='symmetric2',
-    window=None, p=2, derivative=False, smooth=0.0, verbose=False):
+    window=None, p=2, derivative=False, smooth=0.0, center=True, anchor=None, verbose=False):
     '''
     Register a set of observations with DTW, iteratively refining the template.
 
@@ -176,8 +176,13 @@ def align_group(y, template='mean', max_iter=10, tol=1e-4, step_pattern='symmetr
                   an integer index or a (Q,) array: fixed template, no iteration
     *max_iter*  : number of template refinements
     *derivative*, *smooth* : see align_pair
+    *center*    : 'pointwise' (default, = True) | 'karcher' | 'anchor' | 'none' (= False).
+                  Raw DTW warps may contain flat segments (gamma' = 0), for which
+                  the Karcher mean is degenerate; the pointwise mean is therefore
+                  the default. With step_pattern='strict' or smooth > 0 the warps
+                  are strictly increasing and 'karcher' is available.
 
-    Returns a dict with keys 'y', 'warps', 'template', 'distance', 'niter'.
+    Returns a dict with keys 'y', 'warps', 'template', 'distance', 'niter', 'center'.
     '''
     y     = np.atleast_2d(np.asarray(y, dtype=float))
     J, Q  = y.shape
@@ -221,8 +226,12 @@ def align_group(y, template='mean', max_iter=10, tol=1e-4, step_pattern='symmetr
         tmpl   = new
         if change < tol:
             break
+    center = _warp.resolve_center(center, 'pointwise')
+    if center != 'none' and J > 1:
+        gam, gref = _warp.center_warps(gam, method=center, anchor=anchor)
+        tmpl      = _warp.apply_warp(tmpl, _warp.invert(gref))
     yr = np.array([_warp.apply_warp(y[i], gam[i])  for i in range(J)])
-    return dict(y=yr, warps=gam, template=tmpl, distance=dist, niter=niter)
+    return dict(y=yr, warps=gam, template=tmpl, distance=dist, niter=niter, center=center)
 
 
 def _dba_update(y, paths, Q):
