@@ -18,7 +18,7 @@ and, where noted, their source distributions.
 | matplotlib | 3.11 | Matplotlib license (PSF-based) | yes | permissive; used only by `reg1d.plot` and the `plot` methods |
 
 No other package is imported by `reg1d` at runtime. The modules added in
-the second session (`bayes.py`, `pairwise.py`, `sim.py`, `stats.py`, the
+the second session (`bayes.py`, `pairwise.py`, `sim.py`, `stats.py`, `realtime.py`, the
 multivariate SRSF, derivative DTW, DBA, warp smoothing, banded / refined
 DP, the `cover` constraint) introduce no new imports: they use numpy and
 scipy only (`scipy.integrate`, `scipy.optimize`, `scipy.ndimage`,

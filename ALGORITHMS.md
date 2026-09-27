@@ -36,7 +36,7 @@ observation i satisfies y_registered_i(t) = y_i(gamma_i(t)).
 | `srsf_mv`, `srsf_inverse_mv` | vector SRSF and its inverse for (Q,D) observations | math: Srivastava et al. (2011) (SRVF of curves) |
 | `srsf_inverse(q, y0)` | f(t) = y0 + int_0^t q abs(q) | math |
 | `warp_srsf(q, w)` | group action (q o w) sqrt(w') | math |
-| `align_srsf_pair(q1, q2, max_step, nsub, lam, band)` | dynamic programming over a grid of Q x Q nodes (univariate or vector SRSFs; optional Sakoe-Chiba band `band` implemented by masking nodes) with admissible steps (di,dj) = all coprime pairs with 1 <= di,dj <= max_step; segment costs computed vectorised for all start nodes with linear interpolation of q1, q2 at `nsub` sub-samples per grid step and trapezoidal integration; strictly increasing paths only; optional penalty lam (sqrt(slope)-1)^2 per segment (the fdasrsf `lam` convention); back-tracking; piecewise-linear warp | math: the DP formulation of Srivastava et al. (2011) §4; the vectorised row-by-row recursion is original |
+| `align_srsf_pair(q1, q2, max_step, nsub, lam, band, dt1, dt2)` | dynamic programming over a grid of Q1 x Q2 nodes (Q1 = Q2 in normalised time; different sizes and sampling intervals dt1, dt2 in real time, with the slope of each segment expressed in time units; univariate or vector SRSFs; optional Sakoe-Chiba band `band` implemented by masking nodes) with admissible steps (di,dj) = all coprime pairs with 1 <= di,dj <= max_step; segment costs computed vectorised for all start nodes with linear interpolation of q1, q2 at `nsub` sub-samples per grid step and trapezoidal integration; strictly increasing paths only; optional penalty lam (sqrt(slope)-1)^2 per segment (the fdasrsf `lam` convention); back-tracking; piecewise-linear warp | math: the DP formulation of Srivastava et al. (2011) §4; the vectorised row-by-row recursion is original |
 | `refine_warp(q1, q2, gam)` | smooth refinement of a DP warp: gamma = gam o eta with eta = int exp(W) in a small cosine basis, L-BFGS-B on the SRSF distance; accepted only if it lowers the objective | original (comparable in purpose to fdasrsf `omethod="RBFGS"`, different algorithm) |
 | `align_pair(y1, y2)` | convenience: SRSF + DP (+ refinement) + warp application; univariate or multivariate | math |
 | `align_group(y, ...)` | initial template = observation nearest the mean SRSF; iterate {align all to template; template = mean (or Weiszfeld-weighted median) of aligned SRSFs} until relative change < tol; optional centring (see `warp.center_warps`); template returned in function space via `srsf_inverse`; `parallel` uses `concurrent.futures.ProcessPoolExecutor` over observations | math: Karcher mean / median algorithms of Srivastava et al. (2011) §5 / Tucker et al. (2013), same structure as fdasrsf `srsf_align(method="mean"/"median")` |
@@ -93,6 +93,17 @@ observation i satisfies y_registered_i(t) = y_i(gamma_i(t)).
 | `center_warps(w)` | w_i o w_mean^{-1}, so that the Karcher mean is the identity | math: the centring step of fdasrsf `srsf_align(center=True)` |
 | `random_warp(J, Q, sigma, n_basis)` | random tangent vector at the identity in a sine basis, exponential map to the sphere, integration to a warp | math: the construction used for simulation in the SRSF literature; equivalent in spirit to scikit-fda `make_random_warping` but written independently (parameterisation differs) |
 | `Warp1D`, `Warp1DList` | object wrappers (apply, compose, inverse, displacement fields, Karcher mean, centring, plotting) | interface modelled on nlreg1d; implementation new |
+
+## 7. Real-time registration (`reg1d.realtime`)
+
+| function | description | provenance |
+|---|---|---|
+| `prepare(y, t)` | ragged input -> lists of observations and uniformly spaced time vectors (t: None = frames, scalar dt, 'fs=<Hz>', or one vector per observation) | — |
+| `reference_axis(durations, n_ref, T_ref)` | uniform reference axis, n_ref points over the mean duration by default | — |
+| `align_group_srsf(...)` | SRSFs with derivatives in physical time (q_real = q_unit / sqrt(T_i)); DP between the reference grid (dt1) and each observation's grid (dt2) via `srsf.align_srsf_pair(..., dt1, dt2, return_index=True)`; Karcher mean / median template on the reference axis; Karcher centring of the normalised warps; multivariate supported | math: the SRSF framework is defined for arbitrary domains; the two-grid DP is the standard DP with the slope expressed in time units |
+| `align_group_dtw(...)` | DTW between each observation and the reference-axis template; derivative estimates divided by the sampling intervals | math: Sakoe & Chiba (1978); Keogh & Pazzani (2001) |
+| `align_group_landmark(...)` | monotone interpolant through (0,0), (target_k, landmark_ik), (T_ref, T_i) in seconds | math: Ramsay & Silverman (2005) §7.3 |
+| outputs | `warps` (normalised gamma_i = Gamma_i(s T_ref)/T_i), `warps_realtime` (Gamma_i in seconds), `displacement_realtime` (Gamma_i - tau T_i/T_ref), `y0` (linearly rescaled observations) | — |
 
 ## 7a. Bayesian registration (`reg1d.bayes`)
 

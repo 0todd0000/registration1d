@@ -1,7 +1,7 @@
 # reg1d — summary of findings and suggestions for further development
 
-Date: 2026-09-27. Status: preliminary package (v0.0.2), 34 passing tests,
-six executed notebooks.
+Date: 2026-09-27. Status: preliminary package (v0.0.2), 37 passing tests,
+seven executed notebooks.
 
 <span style="color:#ffd400">**Highlighted text (yellow) marks additions and changes made in the second
 session (2026-09-27, afternoon), after the review of the first version.**</span>
@@ -49,13 +49,14 @@ Layout:
       sim.py          self-modelling (shape-invariant model) registration
       pairwise.py     pairwise synchronisation
       bayes.py        Bayesian registration (pCN sampler)
+      realtime.py     real-time registration of observations of different lengths
       linear.py       resampling, shift and affine registration (fill rules, cover constraint)
       stats.py        two-sample tests with permutation inference
       reg.py          public register_* functions and result classes
       data.py, plot.py, data/*.npz, data/*.csv
-    notebooks/        1-Registration, 2-Methods, 3-Warps, 4-Multivariate,
-                      WarpCenteringIssue, Bayesian-vs-nlreg1d (+ html/, make_notebooks.py)
-    tests/            pytest suite (34 tests)
+    notebooks/        1-Registration, 2-Methods, 3-Warps, 4-Multivariate, WarpCenteringIssue,
+                      Bayesian-vs-nlreg1d, RealTimeRegistration (+ html/, make_notebooks.py)
+    tests/            pytest suite (37 tests)
     TESTS.md          test strategy;  PAPER-IDEAS.md  publication ideas
 
 ## 2. Key findings
@@ -152,6 +153,33 @@ are used quantitatively; (v) the natural next step is a hierarchical model
 with group-level warp distributions, which would be a direct Bayesian
 counterpart of the nlreg1d test (see PAPER-IDEAS.md, idea 2).</span>
 
+### <span style="color:#ffd400">2.5a Real-time registration (notebook RealTimeRegistration)</span>
+
+<span style="color:#ffd400">All nonlinear procedures in notebooks 1-2 ran on linearly registered
+(normalised-time) data, as in nlreg1d. Normalisation rescales each
+observation's time axis by its own duration, so first derivatives -- and
+the SRSFs built from them -- are expressed in different physical time
+units for observations of different durations (a factor of two across the
+Dorn2012 speeds). `reg1d.realtime` now registers observations of different
+lengths on their OWN grids: SRSF derivatives in physical time, dynamic
+programming between each observation's grid and a reference grid (n_ref
+points over the mean duration; generalised `align_srsf_pair` with dt1 !=
+dt2 and Q1 != Q2), warps Gamma_i mapping reference seconds onto observation
+seconds (`info['warps_realtime']`), and real-time displacement fields
+defined as the deviation from the pure linear rescaling. Ragged input
+(`list` of arrays plus `t=` as a sampling interval, 'fs=<Hz>' or time
+vectors) triggers it in `register_srsf` (uni- and multivariate),
+`register_dtw` (derivatives divided by the sampling interval) and
+`register_landmark` (landmarks in seconds). On Dorn2012 the real-time and
+normalised-time SRSF warps differ by at most 0.03 of the domain (most for
+the trials whose duration is furthest from the mean), i.e. the classical
+workflow is not badly wrong for these data, but real-time registration
+keeps loading rates in physical units and separates "shorter trial" from
+"earlier feature" in the displacement fields, which the normalised
+workflow cannot. Slope-constrained DTW step patterns cannot bridge large
+length ratios (e.g. 383 points versus a 101-point reference); a clear
+error message says so.</span>
+
 ### <span style="color:#ffd400">2.6 Speed: numba estimate</span>
 
 <span style="color:#ffd400">Measured on this machine (2 cores), Q = 101, max_step = 6: the pure-numpy
@@ -213,10 +241,9 @@ routine. numba is BSD-2 licensed (GPL-compatible).</span>
 2. **Non-uniform grids and explicit time vectors.** <span style="color:#ffd400">Done: optional `t`
    on every method (uniform grids in any units are used as is; non-uniform
    grids are resampled to a uniform grid with the same span and Q;
-   `result.t`, `result.warps_t`, `result.displacement_fields_t`). Not done:
-   observations of different lengths inside the nonlinear methods (still
-   requires `register_linear` first) — this could be added by resampling
-   internally in `_prepare_grid`.</span>
+   `result.t`, `result.warps_t`, `result.displacement_fields_t`).
+   Observations of different lengths: done properly, as real-time
+   registration (2.5a) rather than by internal resampling.</span>
 3. **SRSF options that fdasrsf users expect.** <span style="color:#ffd400">Done: `method='median'`,
    `smooth='spline'`, `parallel`, multivariate input, `band`, `refine`
    (smooth gradient-based refinement of the DP warp). Not done: fdasrsf's

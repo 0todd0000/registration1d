@@ -1,6 +1,6 @@
 # Test strategy for reg1d
 
-This document describes the test suite in `tests/` (currently 34 tests,
+This document describes the test suite in `tests/` (currently 37 tests,
 `python -m pytest tests`) and the broader suite proposed for the package
 before it is opened up. The tests are grouped by *what property they
 protect*; each group states which tests already exist and which are proposed.
@@ -29,7 +29,8 @@ tests: `f o g` registered to `f` must return `g^-1`.
 - continuous recovers a smooth warp;
 - landmark places explicit landmarks exactly;
 - multivariate SRSF recovers the warp of a 2-component observation;
-- Bayesian posterior mean is close to the inverse generating warp; acceptance rate is in a sane range.
+- Bayesian posterior mean is close to the inverse generating warp; acceptance rate is in a sane range;
+- real-time: the same event sampled at two rates aligns exactly through the two-grid DP; real-time SRSF / DTW / landmark on Dorn2012 give valid warps ending at each observation's duration.
 
 Proposed additions: a **parametrised recovery matrix** (pytest parametrize
 over method x warp strength x noise level x Q) with method-specific
