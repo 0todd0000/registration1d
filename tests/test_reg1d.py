@@ -13,193 +13,335 @@ t = np.linspace(0, 1, Q)
 
 
 def _bump(t):
-	return np.exp(-((t-0.4)/0.1)**2) - 0.7*np.exp(-((t-0.7)/0.08)**2)
+    return np.exp(-((t-0.4)/0.1)**2) - 0.7*np.exp(-((t-0.7)/0.08)**2)
 
 
 @pytest.fixture
 def dorn():
-	d  = reg1d.data.Dorn2012()
-	return reg1d.register_linear(d.y, n=Q), d.group
+    d  = reg1d.data.Dorn2012()
+    return reg1d.register_linear(d.y, n=Q).y, d.group
 
 
 # ------------------------------------------------------------------ warps
 
 def test_invert_compose_identity():
-	g   = warp.random_warp(1, Q, sigma=0.5, random_state=1)
-	gi  = warp.invert(g)
-	assert np.allclose(warp.compose(g, gi), t, atol=5e-3)
-	assert np.allclose(warp.compose(gi, g), t, atol=5e-3)
+    g   = warp.random_warp(1, Q, sigma=0.5, random_state=1)
+    gi  = warp.invert(g)
+    assert np.allclose(warp.compose(g, gi), t, atol=5e-3)
+    assert np.allclose(warp.compose(gi, g), t, atol=5e-3)
 
 
 def test_random_warp_valid():
-	g   = warp.random_warp(5, Q, sigma=1.0, random_state=2)
-	assert g.shape == (5, Q)
-	assert np.all(warp.is_valid_warp(g))
+    g   = warp.random_warp(5, Q, sigma=1.0, random_state=2)
+    assert g.shape == (5, Q)
+    assert np.all(warp.is_valid_warp(g))
 
 
 def test_psi_roundtrip():
-	g   = warp.random_warp(1, Q, sigma=0.8, random_state=3)
-	assert np.allclose(warp.psi_to_warp(warp.warp_to_psi(g)), g, atol=5e-3)
+    g   = warp.random_warp(1, Q, sigma=0.8, random_state=3)
+    assert np.allclose(warp.psi_to_warp(warp.warp_to_psi(g)), g, atol=5e-3)
 
 
 def test_center_warps():
-	g   = warp.random_warp(6, Q, sigma=0.8, random_state=4)
-	gc, gm = warp.center_warps(g)
-	assert np.abs(warp.karcher_mean_warp(gc) - t).max() < 5e-3
+    g   = warp.random_warp(6, Q, sigma=0.8, random_state=4)
+    gc, gm = warp.center_warps(g)
+    assert np.abs(warp.karcher_mean_warp(gc) - t).max() < 5e-3
 
 
 def test_warp_objects():
-	g   = warp.random_warp(3, Q, sigma=0.5, random_state=5)
-	wl  = warp.Warp1DList(g)
-	assert wl.shape == (3, Q)
-	y   = _bump(t)
-	assert wl.apply(y).shape == (3, Q)
-	assert isinstance(wl.mean(), warp.Warp1D)
-	assert isinstance(wl[0].inverse(), warp.Warp1D)
+    g   = warp.random_warp(3, Q, sigma=0.5, random_state=5)
+    wl  = warp.Warp1DList(g)
+    assert wl.shape == (3, Q)
+    y   = _bump(t)
+    assert wl.apply(y).shape == (3, Q)
+    assert isinstance(wl.mean(), warp.Warp1D)
+    assert isinstance(wl[0].inverse(), warp.Warp1D)
 
 
 # ------------------------------------------------------------------ srsf
 
 def test_srsf_inverse():
-	y   = _bump(t)
-	q   = srsf.srsf(y)
-	assert np.allclose(srsf.srsf_inverse(q, y[0]), y, atol=2e-2)
+    y   = _bump(t)
+    q   = srsf.srsf(y)
+    assert np.allclose(srsf.srsf_inverse(q, y[0]), y, atol=2e-2)
 
 
 def test_srsf_pair_recovers_warp():
-	y1  = _bump(t)
-	g   = warp.random_warp(1, Q, sigma=1.0, random_state=0)
-	y2  = warp.apply_warp(y1, g)
-	ya, gam = srsf.align_pair(y1, y2)
-	assert np.abs(gam - warp.invert(g)).max() < 0.03
-	assert np.abs(ya - y1).max() < 0.1
+    y1  = _bump(t)
+    g   = warp.random_warp(1, Q, sigma=1.0, random_state=0)
+    y2  = warp.apply_warp(y1, g)
+    ya, gam = srsf.align_pair(y1, y2)
+    assert np.abs(gam - warp.invert(g)).max() < 0.03
+    assert np.abs(ya - y1).max() < 0.1
 
 
 def test_srsf_group_reduces_variance():
-	y1  = _bump(t)
-	ys  = np.array([warp.apply_warp(y1, warp.random_warp(1, Q, sigma=0.8, random_state=i))  for i in range(6)])
-	res = reg1d.register_srsf(ys)
-	s0, s1 = res.sse()
-	assert s1 < 0.1 * s0
-	assert np.all(warp.is_valid_warp(res.warps.asarray()))
-	# centered warps: Karcher mean should be the identity
-	assert np.abs(res.warps.mean().w - t).max() < 1e-2
+    y1  = _bump(t)
+    ys  = np.array([warp.apply_warp(y1, warp.random_warp(1, Q, sigma=0.8, random_state=i))  for i in range(6)])
+    res = reg1d.register_srsf(ys)
+    s0, s1 = res.sse()
+    assert s1 < 0.1 * s0
+    assert np.all(warp.is_valid_warp(res.warps.asarray()))
+    # centered warps: Karcher mean should be the identity
+    assert np.abs(res.warps.mean().w - t).max() < 1e-2
 
 
 def test_srsf_dorn(dorn):
-	yi, group = dorn
-	yr, wf = reg1d.register_srsf(yi, max_iter=5)
-	assert yr.shape == wf.shape == (8, Q)
-	assert np.all(warp.is_valid_warp(wf))
-	# the propulsive peak (global maximum) should be tightly aligned after registration
-	assert np.argmax(yr, axis=1).std() < np.argmax(yi, axis=1).std()
+    yi, group = dorn
+    yr, wf = reg1d.register_srsf(yi, max_iter=5)
+    assert yr.shape == wf.shape == (8, Q)
+    assert np.all(warp.is_valid_warp(wf))
+    # the propulsive peak (global maximum) should be tightly aligned after registration
+    assert np.argmax(yr, axis=1).std() < np.argmax(yi, axis=1).std()
 
 
 def test_elastic_distances():
-	y1  = _bump(t)
-	g   = warp.random_warp(1, Q, sigma=1.0, random_state=0)
-	y2  = warp.apply_warp(y1, g)
-	assert srsf.amplitude_distance(y1, y2) < 0.2
-	assert srsf.phase_distance(y1, y2) > 0.05
-	assert srsf.phase_distance(y1, y1) < 1e-6
+    y1  = _bump(t)
+    g   = warp.random_warp(1, Q, sigma=1.0, random_state=0)
+    y2  = warp.apply_warp(y1, g)
+    assert srsf.amplitude_distance(y1, y2) < 0.2
+    assert srsf.phase_distance(y1, y2) > 0.05
+    assert srsf.phase_distance(y1, y1) < 1e-6
 
 
 # ------------------------------------------------------------------ dtw
 
 def test_dtw_identity():
-	y   = _bump(t)
-	path, dist = dtw.dtw_path(y, y)
-	assert dist == 0
-	assert np.all(path[:, 0] == path[:, 1])
+    y   = _bump(t)
+    path, dist = dtw.dtw_path(y, y)
+    assert dist == 0
+    assert np.all(path[:, 0] == path[:, 1])
 
 
 def test_dtw_patterns(dorn):
-	yi, group = dorn
-	for sp in dtw.STEP_PATTERNS:
-		res = reg1d.register_dtw(yi, step_pattern=sp, max_iter=2)
-		assert np.all(np.isfinite(res.y))
-		assert np.all(warp.is_valid_warp(res.warps.asarray()))
+    yi, group = dorn
+    for sp in dtw.STEP_PATTERNS:
+        res = reg1d.register_dtw(yi, step_pattern=sp, max_iter=2)
+        assert np.all(np.isfinite(res.y))
+        assert np.all(warp.is_valid_warp(res.warps.asarray()))
 
 
 def test_dtw_window(dorn):
-	yi, group = dorn
-	res = reg1d.register_dtw(yi, window=0.1, max_iter=2)
-	assert np.abs(res.warps.displacement()).max() <= 0.1 + 1e-9
+    yi, group = dorn
+    res = reg1d.register_dtw(yi, window=0.1, max_iter=2)
+    assert np.abs(res.warps.displacement()).max() <= 0.1 + 1e-9
 
 
 # ------------------------------------------------------------------ landmark
 
 def test_landmark_alignment(dorn):
-	yi, group = dorn
-	res = reg1d.register_landmark(yi, kinds=('zero', 'max'))
-	# all maxima now coincide at the target time (to within one grid step)
-	imax = np.argmax(res.y, axis=1)
-	assert imax.std() <= 1.0
-	assert np.all(warp.is_valid_warp(res.warps.asarray()))
+    yi, group = dorn
+    res = reg1d.register_landmark(yi, kinds=('zero', 'max'))
+    # all maxima now coincide at the target time (to within one grid step)
+    imax = np.argmax(res.y, axis=1)
+    assert imax.std() <= 1.0
+    assert np.all(warp.is_valid_warp(res.warps.asarray()))
 
 
 def test_landmark_explicit():
-	y   = np.array([_bump(t), _bump(warp.random_warp(1, Q, sigma=0.5, random_state=7))])
-	lm  = np.array([[np.argmax(yy)/(Q-1)]  for yy in y])
-	res = reg1d.register_landmark(y, landmarks=lm, targets=[0.4])
-	assert np.allclose(np.argmax(res.y, axis=1), 40, atol=1)
+    y   = np.array([_bump(t), _bump(warp.random_warp(1, Q, sigma=0.5, random_state=7))])
+    lm  = np.array([[np.argmax(yy)/(Q-1)]  for yy in y])
+    res = reg1d.register_landmark(y, landmarks=lm, targets=[0.4])
+    assert np.allclose(np.argmax(res.y, axis=1), 40, atol=1)
 
 
 # ------------------------------------------------------------------ continuous
 
 def test_continuous_recovers_smooth_warp():
-	y1  = _bump(t)
-	g   = warp.random_warp(1, Q, sigma=0.5, n_basis=2, random_state=8)
-	y2  = warp.apply_warp(y1, g)
-	ya, gam, c = continuous.align_pair(y1, y2, n_basis=4)
-	assert np.abs(ya - y1).max() < 0.1
+    y1  = _bump(t)
+    g   = warp.random_warp(1, Q, sigma=0.5, n_basis=2, random_state=8)
+    y2  = warp.apply_warp(y1, g)
+    ya, gam, c = continuous.align_pair(y1, y2, n_basis=4)
+    assert np.abs(ya - y1).max() < 0.1
 
 
 def test_continuous_group(dorn):
-	yi, group = dorn
-	res = reg1d.register_continuous(yi, n_basis=6, lam=1e-3, max_iter=3)
-	s0, s1 = res.sse()
-	assert s1 < s0
-	assert np.all(warp.is_valid_warp(res.warps.asarray()))
+    yi, group = dorn
+    res = reg1d.register_continuous(yi, n_basis=6, lam=1e-3, max_iter=3)
+    s0, s1 = res.sse()
+    assert s1 < s0
+    assert np.all(warp.is_valid_warp(res.warps.asarray()))
 
 
 # ------------------------------------------------------------------ linear
 
 def test_resample_ragged():
-	y   = [np.sin(np.linspace(0, 3, n))  for n in (50, 80, 120)]
-	yi  = reg1d.register_linear(y, n=Q)
-	assert yi.shape == (3, Q)
-	assert np.allclose(yi[:, 0], 0) and np.allclose(yi[:, -1], np.sin(3))
+    y   = [np.sin(np.linspace(0, 3, n))  for n in (50, 80, 120)]
+    res = reg1d.register_linear(y, n=Q)
+    yi  = res.y
+    assert res.islinear and yi.shape == (3, Q)
+    assert np.allclose(yi[:, 0], 0) and np.allclose(yi[:, -1], np.sin(3))
 
 
 def test_shift_recovers_delta():
-	y1  = _bump(t)
-	y2  = np.interp(t + 0.05, t, y1)
-	ya, w, d = linear.shift_pair(y1, y2)
-	assert abs(d - (-0.05)) < 5e-3
+    y1  = _bump(t)
+    y2  = np.interp(t + 0.05, t, y1)
+    ya, w, d = linear.shift_pair(y1, y2)
+    assert abs(d - (-0.05)) < 5e-3
 
 
 def test_affine_recovers_params():
-	y1  = _bump(t)
-	y2  = np.interp(0.9*t + 0.03, t, y1)      # y2(t) = y1(0.9 t + 0.03)  ->  y1(s) = y2((s - 0.03)/0.9)
-	ya, w, (a, b) = linear.affine_pair(y1, y2)
-	assert abs(a - 1/0.9) < 0.02 and abs(b + 0.03/0.9) < 0.01
+    y1  = _bump(t)
+    y2  = np.interp(0.9*t + 0.03, t, y1)      # y2(t) = y1(0.9 t + 0.03)  ->  y1(s) = y2((s - 0.03)/0.9)
+    ya, w, (a, b) = linear.affine_pair(y1, y2)
+    assert abs(a - 1/0.9) < 0.02 and abs(b + 0.03/0.9) < 0.01
 
 
 def test_group_linear(dorn):
-	yi, group = dorn
-	for f in (reg1d.register_shift, reg1d.register_affine):
-		res = f(yi)
-		assert res.y.shape == (8, Q)
-		s0, s1 = res.sse()
-		assert s1 < s0
+    yi, group = dorn
+    for f in (reg1d.register_shift, reg1d.register_affine):
+        res = f(yi)
+        assert res.y.shape == (8, Q)
+        s0, s1 = res.sse()
+        assert s1 < s0
 
 
 # ------------------------------------------------------------------ api
 
 def test_result_unpacking(dorn):
-	yi, group = dorn
-	res = reg1d.register(yi, 'landmark')
-	yr, wf = res
-	assert yr.shape == wf.shape
-	assert isinstance(res.warps, warp.Warp1DList)
+    yi, group = dorn
+    res = reg1d.register(yi, 'landmark')
+    yr, wf = res
+    assert yr.shape == wf.shape
+    assert isinstance(res.warps, warp.Warp1DList)
+
+
+# ------------------------------------------------------------------ result objects and grids
+
+def test_result_classes(dorn):
+    yi, group = dorn
+    assert reg1d.register_linear(yi).islinear
+    assert reg1d.register_shift(yi).islinear
+    assert reg1d.register_affine(yi).islinear
+    r = reg1d.register_srsf(yi, max_iter=1)
+    assert isinstance(r, reg1d.NonlinearRegistrationResult) and not r.islinear and r.isnonlinear
+    assert isinstance(r, reg1d.RegistrationResult)
+
+
+def test_explicit_time_grid(dorn):
+    yi, group = dorn
+    r0 = reg1d.register_srsf(yi, max_iter=2)
+    r1 = reg1d.register_srsf(yi, t=np.linspace(0, 100, Q), max_iter=2)      # uniform, different units
+    assert np.allclose(r0.warps.asarray(), r1.warps.asarray())
+    assert r1.t[-1] == 100 and r1.warps_t.max() == 100
+    assert np.allclose(r1.displacement_fields_t, 100 * r0.displacement_fields)
+    tn = np.linspace(0, 1, Q)**1.5                                            # non-uniform
+    r2 = reg1d.register_landmark(yi, t=tn, kinds=('zero', 'max'))
+    assert r2.y.shape == (8, Q) and np.allclose(r2.t, np.linspace(0, 1, Q))
+
+
+def test_apply_unapply(dorn):
+    yi, group = dorn
+    r  = reg1d.register_srsf(yi, max_iter=3)
+    z  = np.gradient(yi, axis=1)
+    assert r.apply(z).shape == z.shape
+    assert np.allclose(r.apply(yi), r.y)
+    back = r.unapply(r.y)
+    assert np.abs(back - yi).max() < 0.05 * np.abs(yi).max()      # interpolation error only
+    assert r.unapply(r.template).shape == (8, Q)
+    assert r.inverse_warps.shape == (8, Q)
+
+
+# ------------------------------------------------------------------ srsf options
+
+def test_srsf_options(dorn):
+    yi, group = dorn
+    base = reg1d.register_srsf(yi, max_iter=2)
+    for kw in [dict(method='median'), dict(smooth='spline'), dict(smooth=2), dict(band=0.15),
+               dict(refine=True), dict(lam=0.5), dict(parallel=2)]:
+        r = reg1d.register_srsf(yi, max_iter=2, **kw)
+        assert r.y.shape == (8, Q) and np.all(warp.is_valid_warp(r.warps.asarray())), kw
+    rb = reg1d.register_srsf(yi, max_iter=2, band=0.05)
+    assert np.abs(rb.warps.displacement()).max() <= 0.05 + 2.0/Q
+    rp = reg1d.register_srsf(yi, max_iter=2, parallel=2)
+    assert np.allclose(rp.warps.asarray(), base.warps.asarray())
+
+
+def test_srsf_multivariate():
+    y1  = np.column_stack([_bump(t), np.sin(2*np.pi*t)])
+    g   = warp.random_warp(1, Q, sigma=0.4, random_state=11)
+    y2  = np.column_stack([warp.apply_warp(y1[:, 0], g), warp.apply_warp(y1[:, 1], g)])
+    ya, gam = srsf.align_pair(y1, y2)
+    assert np.abs(gam - warp.invert(g)).max() < 0.03
+    Y   = np.stack([y1, y2, y2], axis=0)                                      # (3,Q,2)
+    r   = reg1d.register_srsf(Y, max_iter=3)
+    assert r.y.shape == (3, Q, 2) and r.template.shape == (Q, 2)
+    assert r.apply(Y).shape == (3, Q, 2)
+
+
+# ------------------------------------------------------------------ dtw options
+
+def test_dtw_derivative_and_smoothing(dorn):
+    yi, group = dorn
+    r  = reg1d.register_dtw(yi, derivative=True, step_pattern='strict', smooth=0.03, max_iter=2)
+    g  = r.warps.asarray()
+    assert np.all(warp.is_valid_warp(g))
+    assert np.gradient(g, axis=1).min() > 0                                   # strictly increasing
+    rd = reg1d.register_dtw(yi, template='dba', max_iter=2)
+    assert rd.y.shape == (8, Q)
+
+
+def test_smooth_warp_preserves_validity():
+    g  = warp.random_warp(3, Q, sigma=0.5, random_state=12)
+    gs = warp.smooth_warp(g, 0.05)
+    assert np.all(warp.is_valid_warp(gs))
+    assert np.abs(gs - g).max() < 0.1
+
+
+# ------------------------------------------------------------------ linear options
+
+def test_affine_cover_zero_fill(dorn):
+    yi, group = dorn
+    r = reg1d.register_affine(yi, cover=True, fill_value='zero')
+    a, b = r.info['params'][:, 0], r.info['params'][:, 1]
+    assert np.all(b <= 1e-9) and np.all(a + b >= 1 - 1e-9)
+    assert np.allclose(r.y[:, 0], yi[:, 0]) or np.abs(r.y[:, 0]).max() <= np.abs(yi[:, 0]).max() + 1e-9
+    assert np.abs(r.y[:, -1]).max() <= np.abs(yi[:, -1]).max() + 1e-9
+
+
+def test_fill_values():
+    y = _bump(t)
+    for fv in ('edge', 'zero', 'extrapolate', 0.5):
+        out = linear._eval(y, t + 0.1, fv)
+        assert out.shape == y.shape and np.all(np.isfinite(out))
+
+
+# ------------------------------------------------------------------ additional methods
+
+def test_bayes_pair_and_group():
+    from reg1d import bayes
+    y1  = _bump(t)
+    g   = warp.random_warp(1, Q, sigma=0.3, n_basis=2, random_state=5)
+    y2  = warp.apply_warp(y1, g) + 0.02 * np.random.default_rng(3).standard_normal(Q)
+    c0  = bayes.initial_coef(srsf.align_pair(y1, y2)[1], 8)
+    s   = bayes.sample_pair(y1, y2, n_samples=300, burn=500, c0=c0, random_state=1)
+    sm  = bayes.summarize(s['warps'])
+    assert s['warps'].shape == (300, Q)
+    assert 0.05 < s['accept'] < 0.6
+    assert np.abs(sm['warp_mean'] - warp.invert(g)).mean() < 0.02
+    Y   = np.array([y1, y2])
+    r   = reg1d.register_bayes(Y, n_samples=100, burn=100, random_state=2, max_iter=2)
+    assert r.info['samples'].shape == (2, 100, Q) and r.info['disp_ci'].shape == (2, 2, Q)
+
+
+def test_pairwise_and_sim(dorn):
+    yi, group = dorn
+    r = reg1d.register_pairwise(yi[:4])
+    assert r.info['pairwise'].shape == (4, 4, Q) and np.all(warp.is_valid_warp(r.warps.asarray()))
+    r = reg1d.register_sim(yi, n_basis=4, max_iter=2)
+    assert r.info['amplitude'].shape == (8, 2) and np.all(warp.is_valid_warp(r.warps.asarray()))
+
+
+# ------------------------------------------------------------------ stats helpers
+
+def test_stats_permutation():
+    from reg1d import stats
+    rng = np.random.default_rng(0)
+    yA  = rng.standard_normal((10, Q))
+    yB  = rng.standard_normal((10, Q)) + np.where((t > 0.4) & (t < 0.6), 3.0, 0.0)
+    res = stats.permutation_ttest2(yA, yB, n_perm=200, random_state=0)
+    assert res['p'] < 0.05 and len(res['clusters']) >= 1
+    covered = np.zeros(Q, dtype=bool)
+    for lo, hi in res['clusters']:
+        covered[lo:hi+1] = True
+    assert covered[45:56].mean() > 0.8 and covered[:30].mean() < 0.2

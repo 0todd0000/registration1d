@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "reg1d"
-version = "0.0.1"
+version = "0.0.2"
 description = "Linear and nonlinear registration of one-dimensional data"
 readme = "README.md"
 license = {text = "GPL-3.0-or-later"}
@@ -25,4 +25,4 @@ classifiers = [
 include = ["reg1d*"]
 
 [tool.setuptools.package-data]
-reg1d = ["data/*.npz"]
+reg1d = ["data/*.npz", "data/*.csv"]
