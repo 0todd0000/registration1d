@@ -1,7 +1,7 @@
 # registration1d — summary of findings and suggestions for further development
 
-Date: 2026-09-27. Status: preliminary package (v0.0.2), 44 passing tests,
-seven executed notebooks.
+Date: 2026-09-28. Status: preliminary package (v0.0.2), 45 tests,
+eight executed notebooks; source moved to the src layout for the public repository.
 
 <span style="color:#ffd400">**Highlighted text (yellow) marks additions and changes made after the review
 of the first version (2026-09-27, afternoon and evening).**</span>
@@ -53,7 +53,7 @@ Layout:
       linear.py       resampling, shift and affine registration (fill rules, cover constraint)
       stats.py        two-sample tests with permutation inference
       reg.py          public register_* functions and result classes
-      data.py, plot.py, data/*.npz, data/*.csv
+      data.py, plot.py, plotqt.py (optional PyQtGraph backend), data/*.npz, data/*.csv
     notebooks/        1-Registration, 2-Methods, 3-Warps, 4-Multivariate, WarpCenteringIssue,
                       Bayesian-vs-nlreg1d, RealTimeRegistration (+ html/, make_notebooks.py)
                       (WarpCentering replaces the earlier WarpCenteringIssue)
@@ -180,6 +180,18 @@ keeps loading rates in physical units and separates "shorter trial" from
 workflow cannot. Slope-constrained DTW step patterns cannot bridge large
 length ratios (e.g. 383 points versus a 101-point reference); a clear
 error message says so.</span>
+
+### <span style="color:#ffd400">2.5b PyQtGraph backend (notebook PyQtGraph-backend)</span>
+
+<span style="color:#ffd400">`registration1d.plotqt` mirrors `registration1d.plot` on PyQtGraph
+(MIT; optional `[qt]` extra, a Qt binding chosen by the user). Every
+function draws into a caller-supplied PlotItem / PlotWidget /
+GraphicsLayoutWidget or creates a stand-alone widget; no event loop is
+started; `to_image` renders off-screen for notebooks and tests;
+`set_theme` gives a Matplotlib-like light theme by default, PyQtGraph's
+dark theme, or leaves an application's own theme alone;
+`RegistrationResult.plot(backend='pyqtgraph')` is the shortcut. The
+core package never imports Qt.</span>
 
 ### <span style="color:#ffd400">2.6 Speed: numba estimate</span>
 

@@ -419,3 +419,23 @@ def test_auto_lam():
     assert r0.info['lam'] == 0
     # the penalty suppresses the noise-driven warps in the flat tails of dataset A
     assert np.abs(r.displacement_fields[:, :15]).max() < np.abs(r0.displacement_fields[:, :15]).max()
+
+
+# ------------------------------------------------------------------ pyqtgraph backend (optional)
+
+def test_plotqt_backend(dorn, tmp_path):
+    pg = pytest.importorskip('pyqtgraph')
+    import os
+    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+    from registration1d import plotqt
+    yi, group = dorn
+    r   = reg1d.register_srsf(yi, max_iter=1)
+    win = r.plot(group=group, backend='pyqtgraph')
+    assert len(win.plots) == 3
+    img = plotqt.to_image(win, tmp_path / 'reg.png')
+    assert img.width() > 0 and (tmp_path / 'reg.png').exists()
+    w   = plotqt.plot_displacement_fields(r.warps.asarray(), group=group)
+    assert plotqt.to_image(w, size=(300, 200)).height() == 200
+    # drawing into a caller-supplied PlotItem returns that same object
+    glw = pg.GraphicsLayoutWidget(); item = glw.addPlot()
+    assert plotqt.plot_curves(yi, group=group, plot=item) is item

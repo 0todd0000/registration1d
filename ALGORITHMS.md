@@ -139,6 +139,7 @@ observation i satisfies y_registered_i(t) = y_i(gamma_i(t)).
 | `data.Dorn2012MV` | three-component forces, 18 trials (nlreg1d `Data/Dorn2021-orig.npz`) | new loader, same data |
 | `data.SimulatedA`, `data.SimulatedB` | two-group simulated datasets of the nlreg1d paper (amplitude effect / timing effect) | new loader, same data |
 | `plot.plot_curves`, `plot_warps`, `plot_displacement_fields`, `plot_registration` | matplotlib helpers | new |
+| `plotqt.*` (same names), `plotqt.to_image`, `plotqt.set_theme`, `plotqt.app` | the same helpers on PyQtGraph (optional `[qt]` extra), drawing into caller-supplied PlotItems or stand-alone widgets; `RegistrationResult.plot(backend='pyqtgraph')` | new |
 
 ## References
 

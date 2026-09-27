@@ -243,7 +243,16 @@ class RegistrationResult(object):
         f = lambda a: float(((a - a.mean(axis=0))**2).sum())
         return f(self.y0), f(self.y)
 
-    def plot(self, group=None, **kwargs):
+    def plot(self, group=None, backend='matplotlib', **kwargs):
+        '''
+        Three-panel summary (before / after / warps).
+
+        *backend* : 'matplotlib' (returns (fig, axes)) or 'pyqtgraph' (returns a
+                    GraphicsLayoutWidget; requires the optional [qt] extra)
+        '''
+        if backend == 'pyqtgraph':
+            from . import plotqt
+            return plotqt.plot_registration(self, group=group, **kwargs)
         from . import plot
         return plot.plot_registration(self, group=group, **kwargs)
 

@@ -34,6 +34,13 @@ Because all three runtime dependencies are permissively licensed, releasing
 of the GPL itself (retain the license text, mark modified files, provide
 source).
 
+## 1a. Optional dependencies (imported only on demand)
+
+| package | version checked | license | GPLv3-compatible | notes |
+|---|---|---|---|---|
+| pyqtgraph | 0.14 | MIT | yes | imported only by `registration1d.plotqt`; installed with the `[qt]` extra |
+| PyQt6 / PySide6 (a Qt binding, chosen by the user) | 6.x | PyQt6: GPL-3.0 (or commercial); PySide6: LGPL-3.0 | yes (both) | required by pyqtgraph, not by registration1d itself; never imported directly |
+
 ## 2. Development-only dependencies (not imported by registration1d)
 
 | package | license | GPLv3-compatible | use |
