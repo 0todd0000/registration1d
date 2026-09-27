@@ -124,6 +124,15 @@ result = reg1d.register_srsf(yi, max_iter=5)
 print(result)
 print('iterations:', result.info['niter'])
 print('SRSF cost per iteration:', result.info['cost'].round(1))
+print('elasticity penalty used (lam="auto" = median total variation of the observations):', round(result.info['lam'], 1))
+print('centering:', result.info['center'])
+'''),
+md('''
+Two defaults differ from `fdasrsf`: the elasticity penalty `lam` is data-adaptive (`'auto'`,
+the median total variation of the observations; `fdasrsf` uses 0) because unpenalised
+alignment produces noise-driven warps in flat regions (see the *Bayesian-vs-nlreg1d* notebook),
+and the warps are centred so that their Karcher mean is the identity (`center='karcher'`; see
+the *WarpCentering* notebook). Both can be switched off (`lam=0`, `center=False`).
 '''),
 md('''
 ### Warp functions and displacement fields
@@ -191,6 +200,7 @@ try:
         fw = fdasrsf.fdawarp(yi.T, t)
         fw.srsf_align(MaxItr=5)
     wf_fdasrsf = fw.gam.T
+    yr, wf = reg1d.register_srsf(yi, max_iter=5, lam=0)      # fdasrsf settings: no penalty
     print('fdasrsf version:', fdasrsf.__version__)
     print('max |warp difference| per observation:', np.abs(wf - wf_fdasrsf).max(axis=1).round(3))
     fig,AX = plt.subplots(1, 2, figsize=(12,4.5))
@@ -708,26 +718,39 @@ changes this weighting and may be desirable when the components have very differ
 
 nb_center = [
 md("""
-# The warp-centering issue
+# Warp centering
 
-### The question
+### The issue
 
 Group registration produces J warps γ_i and registered observations y_i∘γ_i. The registered
 observations live on the time axis of the **template**, but the template's own timing is
 arbitrary: it depends on which observation seeded the iteration, on the method, and on the
 initial cross-sectional mean. Any common warp η can be applied to all γ_i (γ_i ↦ γ_i∘η) without
 changing the *relative* alignment of the observations; it only changes the time axis on which
-the registered data and the template are reported.
+the registered data and the template are reported. Iterating the template (registering to an
+arbitrary template, replacing it by the mean of the registered curves, and repeating) removes
+the seed's influence on the template's *shape*, but not on its *timing*: the alignment cost is
+invariant to a common warp, so the iteration cannot detect a timing bias, let alone remove it.
 
-**Centering** picks one representative from this family: the warps are composed with the inverse
-of their Karcher mean, γ_i ↦ γ_i∘γ̄⁻¹, so that the Karcher mean of the centered warps is the
-identity. The registered data then keep the *average timing of the original data*, which is
-the natural convention when the goal is to describe timing differences between observations or
-groups (the displacement fields are then deviations from the group-average timing).
+**Centering** picks one representative from the family {γ_i∘η}: each warp is composed with
+the inverse of a common reference warp, γ_i ↦ γ_i∘w_ref⁻¹, and the reference is chosen so that
+the registered data have a meaningful common time axis.
 
-This notebook illustrates (i) what centering does, (ii) why it matters for the interpretation of
-displacement fields and for hypothesis tests on them, and (iii) the complications for DTW and
-landmark registration, where the question of the default is still open.
+### The decision
+
+Every nonlinear `register_*` function has a `center` keyword with the same four options
+(`reg1d.warp.center_warps`):
+
+| `center=` | reference warp w_ref | default for |
+|---|---|---|
+| `'karcher'` | Karcher (Fréchet) mean of the warps under the Fisher–Rao metric; afterwards the Karcher mean of the warps is the identity, i.e. the registered data have the average timing of the sample | SRSF, continuous, self-modelling, pairwise, Bayesian (all produce invertible warps) |
+| `'pointwise'` | arithmetic (pointwise) mean of the warps; well defined also for warps with flat segments | DTW (raw DTW paths may contain horizontal runs, γ′ = 0, for which the Karcher mean is degenerate) |
+| `'anchor'` | a monotone warp chosen so that a user-specified event keeps its mean time (`anchor=` a (J,) array of event times, or `'max'` / `'min'`) | — (offered as an explicit choice) |
+| `'none'` | identity: no centering; the registered data keep the template's time axis | landmark registration (mean targets already anchor the registered data at the landmarks, which *is* the anchor convention) |
+
+`center=True` selects the method's default and `center=False` is `'none'`, so that any
+procedure can be run uncentred for comparison. The method used is recorded in
+`result.info['center']`.
 """),
 code(SETUP),
 code("""
@@ -736,100 +759,118 @@ speed   = dataset.group
 yi      = reg1d.register_linear(dataset.y, n=101).y
 colors  = ['k','b','g','r']
 t       = np.linspace(0, 1, 101)
+
+def show(results, titles):
+    fig,AX = plt.subplots(len(results), 3, figsize=(15, 3.6*len(results)))
+    AX = np.atleast_2d(AX)
+    for row,(r,name) in enumerate(zip(results, titles)):
+        reg1d.plot.plot_curves(r.y, group=speed, ax=AX[row,0], colors=colors, x='percent', legend=(row==0)); AX[row,0].set_title(f'{name}: registered')
+        r.warps.plot(ax=AX[row,1], group=speed, colors=colors, legend=False)
+        AX[row,1].plot(t, r.warps.mean().w, 'm', lw=3, label='Karcher mean'); AX[row,1].plot(t, r.warps.asarray().mean(axis=0), 'c--', lw=2, label='pointwise mean'); AX[row,1].legend(); AX[row,1].set_title(f'{name}: warps')
+        reg1d.plot.plot_displacement_fields(r.warps.asarray(), group=speed, ax=AX[row,2], colors=colors, legend=False); AX[row,2].set_title(f'{name}: displacement fields')
+    plt.tight_layout(); plt.show()
+
+def report(r, name):
+    g = r.warps.asarray()
+    print(f"{name:32s} center={r.info['center']:9s} |Karcher mean - id|max = {np.abs(reg1d.warp.karcher_mean_warp(g)-t).max():.4f}   "
+          f"|pointwise mean - id|max = {np.abs(g.mean(axis=0)-t).max():.4f}   mean peak time = {np.argmax(r.y,axis=1).mean():.2f} % (original {np.argmax(yi,axis=1).mean():.2f} %)")
 """),
 md("""
-### 1. SRSF: centered versus uncentered
+### 1. SRSF: the four options
 
-With `center=False` the registered data inherit the timing of the initial template (the
-observation closest to the mean SRSF). With `center=True` (default) the Karcher mean of the warps is
-the identity. The alignment of the observations relative to each other is identical; only the
-common time axis differs.
+The relative alignment of the observations is identical in all four cases; only the common
+time axis differs. With `'karcher'` the average timing of the sample is preserved (the mean
+peak time equals that of the original data); with `'none'` the data inherit the timing of the
+seed observation; with `'anchor'` the propulsive peak keeps its mean time exactly.
 """),
 code("""
-r_c  = reg1d.register_srsf(yi, max_iter=5, center=True)
-r_u  = reg1d.register_srsf(yi, max_iter=5, center=False)
-fig,AX = plt.subplots(2, 3, figsize=(15,8))
-for row,(r,name) in enumerate([(r_c,'centered'),(r_u,'uncentered')]):
-    reg1d.plot.plot_curves(r.y, group=speed, ax=AX[row,0], colors=colors, x='percent'); AX[row,0].set_title(f'{name}: registered')
-    r.warps.plot(ax=AX[row,1], group=speed, colors=colors, legend=False); AX[row,1].plot(t, r.warps.mean().w, 'm', lw=3, label='Karcher mean'); AX[row,1].legend(); AX[row,1].set_title(f'{name}: warps')
-    reg1d.plot.plot_displacement_fields(r.warps.asarray(), group=speed, ax=AX[row,2], colors=colors, legend=False); AX[row,2].set_title(f'{name}: displacement fields')
-plt.tight_layout(); plt.show()
-print('mean displacement (normalised time), centered  :', np.abs(r_c.displacement_fields.mean(axis=0)).max().round(4))
-print('mean displacement (normalised time), uncentered:', np.abs(r_u.displacement_fields.mean(axis=0)).max().round(4))
+res = {c: reg1d.register_srsf(yi, max_iter=5, center=c, anchor='max') for c in ('karcher', 'pointwise', 'anchor', 'none')}
+for c,r in res.items():
+    report(r, f'SRSF, center={c!r}')
+show(list(res.values()), [f"center='{c}'" for c in res])
 """),
 md("""
-### 2. Why it matters: hypothesis tests on displacement fields
+### 2. Why it matters: displacement-field statistics
 
 A two-sample test on displacement fields (the nlreg1d timing test) compares group means of
-d_i(t). A common warp η adds (approximately) the same displacement to every observation, so a
+d_i(t). A common warp adds (approximately) the same displacement to every observation, so a
 *difference* between groups is nearly invariant to centering — but the individual displacement
-fields, their pooled variance estimate near the boundaries, and any one-sample test (e.g. "is
-this group's timing different from linear time?") are not. Centering makes the reference the
-average timing of the sample, which is the only choice that does not depend on an arbitrary
-observation.
+fields, one-sample questions ("is this group's timing different from linear time?"), and
+comparisons between methods or studies are not. Centering makes the reference the average timing
+of the sample, the only choice that does not depend on an arbitrary observation.
 """),
 code("""
 from reg1d import stats
 groupAB = np.where(speed <= 1, 0, 1)         # slow (0,1) vs fast (2,3)
-for r,name in [(r_c,'centered'),(r_u,'uncentered')]:
+for c,r in res.items():
     d  = r.displacement_fields
     tt = stats.permutation_ttest2(d[groupAB==0], d[groupAB==1], n_perm=500, random_state=0)
-    print(f'{name:11s}: max |t| = {np.abs(tt["t"]).max():.2f}, threshold = {tt["threshold"]:.2f}, p = {tt["p"]:.3f}, clusters = {tt["clusters"]}')
+    one = np.abs(d.mean(axis=0)).max()
+    print(f"center={c!r:12s}: two-sample max|t| = {np.abs(tt['t']).max():.2f} (p = {tt['p']:.3f}, clusters {tt['clusters']});   max |mean displacement| = {one:.4f}")
 """),
 md("""
-### 3. Centering is possible only for invertible warps
+### 3. DTW: pointwise mean by default, Karcher mean once the warps are diffeomorphic
 
-Centering composes warps with the inverse of their Karcher mean, and the Karcher mean is defined
-through ψ = √γ′. Both require γ′ > 0. This is where the methods differ:
-
-| method | warps | centering |
-|---|---|---|
-| SRSF, continuous, sim, pairwise, bayes | strictly increasing (diffeomorphisms) | applied by default (`center=True`) |
-| landmark | strictly increasing (PCHIP / linear interpolant) | implicit: the targets are the *mean landmark times*, so the average timing is preserved at the landmarks (but the Karcher mean of the warps is not exactly the identity) |
-| DTW | monotone but with flat segments (γ′ = 0 on horizontal runs) unless `step_pattern='strict'` or `smooth>0` | ψ = 0 on flat segments: the Karcher mean is still computable but the inverse of a flat warp is not unique, so `register_dtw` currently returns **uncentered** warps |
+Raw DTW warps (`symmetric2`) have flat segments; their Karcher mean is still computable but
+the inverse of a flat warp is not unique, so the pointwise mean is the default. With
+`step_pattern='strict'` and/or `smooth>0` the warps are strictly increasing and `'karcher'`
+behaves as for SRSF.
 """),
 code("""
-r_lm  = reg1d.register_landmark(yi, kinds=('zero','max'))
-r_dtw = reg1d.register_dtw(yi)
-r_dtws= reg1d.register_dtw(yi, step_pattern='strict', smooth=0.03)
-for r,name in [(r_lm,'landmark (mean targets)'),(r_dtw,'dtw (symmetric2)'),(r_dtws,'dtw strict+smooth')]:
-    g  = r.warps.asarray()
-    km = reg1d.warp.karcher_mean_warp(g)
-    print(f'{name:26s}: max |Karcher mean - identity| = {np.abs(km - t).max():.4f}, min slope = {np.gradient(g, axis=1).min()*100:.3f}')
-# centering the DTW warps after smoothing is well defined:
-wc = r_dtws.warps.center()
-print('dtw strict+smooth, after centering: max |Karcher mean - identity| =', np.abs(wc.mean().w - t).max().round(4))
+r1 = reg1d.register_dtw(yi)                                                   # default: pointwise
+r2 = reg1d.register_dtw(yi, center='karcher')
+r3 = reg1d.register_dtw(yi, step_pattern='strict', smooth=0.03)               # pointwise
+r4 = reg1d.register_dtw(yi, step_pattern='strict', smooth=0.03, center='karcher')
+r5 = reg1d.register_dtw(yi, center=False)
+for r,name in [(r1,'DTW symmetric2'),(r2,'DTW symmetric2'),(r3,'DTW strict+smooth'),(r4,'DTW strict+smooth'),(r5,'DTW symmetric2')]:
+    report(r, name)
+print('minimum warp slope, symmetric2:', np.gradient(r1.warps.asarray(), axis=1).min().round(4), '  strict+smooth:', np.gradient(r3.warps.asarray(), axis=1).min().round(4))
+show([r1, r3], ["DTW symmetric2, center='pointwise'", "DTW strict+smooth, center='pointwise'"])
 """),
 md("""
-### 4. Alternatives to Karcher-mean centering
+### 4. Landmark registration: mean targets are the anchor convention
 
-1. **Karcher mean = identity** (current default for the diffeomorphic methods). Reference =
-   average timing under the Fisher–Rao geometry. Principled, method-independent, but requires
-   invertible warps.
-2. **Pointwise (arithmetic) mean of the warps = identity.** Simpler, works for DTW warps with
-   flat segments (the arithmetic mean of monotone functions is monotone), but the arithmetic mean
-   of warps is not a proper average in the warp geometry and the result depends slightly on
-   whether one averages the warps or their inverses.
-3. **Landmark-anchored reference**: choose η so that a chosen event (e.g. the propulsive peak)
-   sits at its mean time. Interpretable for the user, but depends on a landmark choice.
-4. **No centering**: registered data live on the template's time axis; simplest, but the
-   reference is arbitrary and differs between methods, which complicates comparisons between
-   methods (as in notebook 2) and between studies.
-
-For a front end, option 1 as default for diffeomorphic warps, with option 2 as the fallback for
-DTW (or, better, making DTW warps diffeomorphic first via `step_pattern='strict'` and `smooth`),
-and option 3 offered as an explicit user choice, seems the most defensible combination; but the
-decision affects every displacement-field statistic downstream and is left open here.
+With `targets='mean'` every landmark is moved to its mean time across observations, so the
+registered data are anchored to the sample's average timing *at the landmarks* by construction.
+This is the `'anchor'` convention applied at K events at once; its Karcher mean is close to,
+but not exactly, the identity. Other centering methods would move the landmarks off their
+targets and are offered only for comparison.
 """),
 code("""
-# option 2 for the raw DTW warps: pointwise-mean centering (illustration only)
-g    = r_dtw.warps.asarray()
-gbar = g.mean(axis=0)
-g2   = np.array([np.interp(reg1d.warp.invert(gbar), t, gg) for gg in g])     # gamma_i o gbar^{-1}
-fig,AX = plt.subplots(1, 2, figsize=(10,4))
-reg1d.plot.plot_warps(g, group=speed, ax=AX[0], colors=colors, legend=False); AX[0].plot(t, gbar, 'm', lw=3); AX[0].set_title('DTW warps and their pointwise mean')
-reg1d.plot.plot_warps(g2, group=speed, ax=AX[1], colors=colors, legend=False); AX[1].plot(t, g2.mean(axis=0), 'm', lw=3); AX[1].set_title('after pointwise-mean centering')
-plt.show()
+r_lm  = reg1d.register_landmark(yi, kinds=('zero','max'))                    # default: none (mean targets)
+r_lmk = reg1d.register_landmark(yi, kinds=('zero','max'), center='karcher')
+for r,name in [(r_lm,'landmark, mean targets'),(r_lmk,'landmark, then Karcher')]:
+    report(r, name)
+    print('    SD of peak time after registration (%):', np.argmax(r.y, axis=1).std().round(2))
+"""),
+md("""
+### 5. The other methods
+
+Continuous, self-modelling, pairwise-synchronisation and Bayesian registration all produce
+strictly increasing warps and default to `'karcher'`; for Bayesian registration the reference
+warp is computed from the posterior-mean warps and applied to every posterior sample, so the
+credible bands are reported on the same axis. Pairwise synchronisation is template-free and its
+warps are already nearly centred (the mean of the pairwise warps is close to the identity);
+Karcher centering makes this exact.
+"""),
+code("""
+for name,fn in [('continuous', lambda c: reg1d.register_continuous(yi, n_basis=6, center=c)),
+                ('sim',        lambda c: reg1d.register_sim(yi, n_basis=6, max_iter=3, center=c)),
+                ('pairwise',   lambda c: reg1d.register_pairwise(yi, center=c))]:
+    for c in ('karcher', 'none'):
+        report(fn(c), f'{name}')
+"""),
+md("""
+### Summary
+
+- Centering changes only the common time axis, never the relative alignment.
+- `'karcher'` is the default wherever warps are invertible; `'pointwise'` is the default for raw
+  DTW; landmark registration is anchored through its mean targets; `'anchor'` is available
+  everywhere for an event-based reference; `center=False` gives the uncentred result for
+  comparison.
+- For displacement-field statistics the between-group difference is nearly invariant to the
+  choice, but one-sample statements and comparisons across methods or studies require a
+  reproducible convention — which is what the defaults provide.
 """),
 ]
 
@@ -909,9 +950,9 @@ def analyse(lam, show=True):
         r     = reg1d.register_srsf(y, max_iter=5, lam=lam)
         ta,tt = stats.timing_test(r, g, n_perm=1000, random_state=0)
         out[name] = dict(result=r, amp=ta, tim=tt)
-        print(f'lam = {lam:5g}, dataset {name}: amplitude p = {ta["p"]:.3f} {ta["clusters"]},  timing p = {tt["p"]:.3f} {tt["clusters"]}')
+        print(f'lam = {lam!s:>5s} (used {r.info["lam"]:.1f}), dataset {name}: amplitude p = {ta["p"]:.3f} {ta["clusters"]},  timing p = {tt["p"]:.3f} {tt["clusters"]}')
         if show:
-            plot_groups(r.y, g, AX[row,0], f'{name}: registered (lam = {lam:g})', 'DV')
+            plot_groups(r.y, g, AX[row,0], f'{name}: registered (lam = {lam})', 'DV')
             plot_test(ta, AX[row,1], f'{name}: amplitude test')
             plot_groups(r.displacement_fields, g, AX[row,2], f'{name}: displacement fields', 'Displacement')
             plot_test(tt, AX[row,3], f'{name}: timing test')
@@ -940,13 +981,16 @@ intact:
 """),
 code("""
 point = analyse(lam=100)
+_     = analyse(lam='auto', show=False)
 """),
 md("""
 With `lam = 100` both datasets behave exactly as intended: A has an amplitude effect and no
-timing effect, B a timing effect and no amplitude effect. The penalty is therefore used for the
-remainder of this notebook (both for the SRSF template and for the initialisation of the Bayesian
-chains). This sensitivity to `lam` in flat regions is itself a strong argument for
-uncertainty-aware registration.
+timing effect, B a timing effect and no amplitude effect. Following this finding the default of
+`register_srsf` is now `lam='auto'`, the median total variation ∫|f′| of the observations
+(here about 49 for A and 45 for B), which gives the same conclusions; `lam=0` reproduces the
+unpenalised `fdasrsf` behaviour. `lam=100` is kept for the remainder of this notebook (both for
+the SRSF template and for the initialisation of the Bayesian chains). This sensitivity to `lam`
+in flat regions is itself a strong argument for uncertainty-aware registration.
 
 ## 2. Bayesian registration
 
@@ -1237,7 +1281,7 @@ ALL = {
     '2-Methods'           : nb2,
     '3-Warps'             : nb3,
     '4-Multivariate'      : nb4,
-    'WarpCenteringIssue'  : nb_center,
+    'WarpCentering'       : nb_center,
     'Bayesian-vs-nlreg1d' : nb_bayes,
     'RealTimeRegistration': nb_rt,
 }
