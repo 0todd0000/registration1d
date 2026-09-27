@@ -14,10 +14,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def md(s):
-	return nbf.v4.new_markdown_cell(s.strip('\n'))
+    return nbf.v4.new_markdown_cell(s.strip('\n'))
 
 def code(s):
-	return nbf.v4.new_code_cell(s.strip('\n'))
+    return nbf.v4.new_code_cell(s.strip('\n'))
 
 
 SETUP = '''
@@ -81,11 +81,15 @@ md('''
 
 The number of frames decreases with speed because stance time decreases. `register_linear`
 interpolates each observation to `n` equally spaced points. It accepts a single observation
-(as in `nlreg1d`) or a sequence of observations of different lengths.
+(as in `nlreg1d`) or a sequence of observations of different lengths. Like every other
+`register_*` function it returns a `RegistrationResult`; the resampled array is its `.y`
+attribute (tuple unpacking `yi, wf = ...` also works, the warps being identities here).
 '''),
 code('''
-yi = reg1d.register_linear(y, n=101)      # (8,101) array
-print(yi.shape)
+lin = reg1d.register_linear(y, n=101)
+print(lin)
+yi  = lin.y                                # (8,101) array
+print(yi.shape, 'original lengths:', lin.info['lengths'])
 
 plt.figure(figsize=(8,5))
 plot_Dorn2012(yi, xlabel='Time (%)')
@@ -126,10 +130,15 @@ md('''
 
 `result.warps` is a `Warp1DList`. Its `displacement_field()` method returns the deviation from
 linear time expressed on the original time axis (the quantity plotted in `nlreg1d`).
+The result also knows its time grid: `result.t`, `result.warps_t` and
+`result.displacement_fields_t` give the same quantities in the units of the grid passed with
+the keyword `t=` (here percent stance).
 '''),
 code('''
-wlist = result.warps                       # Warp1DList
-d     = wlist.displacement_field()         # (8,101)
+result = reg1d.register_srsf(yi, t=np.linspace(0, 100, 101), max_iter=5)   # grid in percent stance
+wlist  = result.warps                       # Warp1DList (normalised time)
+d      = wlist.displacement_field()         # (8,101), normalised time
+print('displacement in % stance, range:', result.displacement_fields_t.min().round(2), result.displacement_fields_t.max().round(2))
 
 fig,AX = plt.subplots(1, 2, figsize=(12,4.5))
 plot_Dorn2012(wf, xlabel='Time (%)', ylabel='Warped time', title='Warp functions', ax=AX[0])
@@ -146,6 +155,24 @@ Every `RegistrationResult` has a `plot` method giving a before / after / warps s
 code('''
 result.plot(group=speed, colors=['k','b','g','r'])
 plt.show()
+'''),
+md('''
+### Applying the warps to other variables, and undoing them
+
+A common biomechanical workflow is to register on one variable (e.g. the GRF) and apply the
+same warps to other variables measured simultaneously (joint angles, EMG, ...):
+`result.apply(z)`. The inverse operation `result.unapply(z)` maps registered-time quantities
+(e.g. the template, or a statistical result) back onto each observation's own time base.
+'''),
+code('''
+dydt = np.gradient(yi, axis=1)                    # a second variable on the same time base (here: the loading rate)
+dydt_registered = result.apply(dydt)
+y_back = result.unapply(result.y)                 # approximately the original yi
+print('max |unapply(y) - yi| / max|yi| =', (np.abs(y_back - yi).max() / np.abs(yi).max()).round(4))
+fig,AX = plt.subplots(1, 2, figsize=(12,4.5))
+plot_Dorn2012(dydt, xlabel='Time (%)', ylabel='Loading rate (N / frame)', title='second variable, linear', ax=AX[0])
+plot_Dorn2012(dydt_registered, xlabel='Time (%)', ylabel='Loading rate (N / frame)', title='same warps applied', ax=AX[1])
+plt.tight_layout(); plt.show()
 '''),
 md('''
 ### Agreement with fdasrsf (optional)
@@ -197,11 +224,16 @@ through the same interface and all returning a `RegistrationResult`:
 | `register_dtw` | nonlinear | dynamic time warping (step patterns, optional window) |
 | `register_landmark` | nonlinear | monotone interpolant through landmarks |
 | `register_continuous` | nonlinear | smooth parametric γ = ∫exp(W), penalised least squares |
+| `register_sim` | nonlinear | self-modelling / shape-invariant model (amplitude + smooth warp) |
+| `register_pairwise` | nonlinear | pairwise synchronisation (template-free) |
+| `register_bayes` | nonlinear | Bayesian registration (posterior samples of the warps) — see notebook *Bayesian-vs-nlreg1d* |
 
 This notebook applies each of them to the `Dorn2012` dataset and comments on their suitability.
+All functions return a `RegistrationResult` (`LinearRegistrationResult` or
+`NonlinearRegistrationResult`; `result.islinear` tells which).
 '''),
 code(SETUP),
-code(PLOT_DORN.replace("plt.figure(figsize=(8,5))\nplot_Dorn2012(y)\nplt.show()", "yi = reg1d.register_linear(y, n=101)")),
+code(PLOT_DORN.replace("plt.figure(figsize=(8,5))\nplot_Dorn2012(y)\nplt.show()", "yi = reg1d.register_linear(y, n=101).y")),
 md('''
 ## Linear methods
 
@@ -219,6 +251,29 @@ print('affine (a, b):'); print(res_affine.info['params'].round(3))
 res_shift.plot(group=speed, colors=colors, titles=('Linear', 'Shift-registered', 'Warps'))
 res_affine.plot(group=speed, colors=colors, titles=('Linear', 'Affine-registered', 'Warps'))
 plt.show()
+'''),
+md('''
+#### End-point effects in affine registration
+
+With the default settings an affine map γ(t) = a t + b with a + b < 1 cuts off the end of an
+observation (the registered curve ends at y(a+b) rather than at y(1) ≈ 0), and values needed
+from outside the original domain are held at the boundary value (`fill_value='edge'`). For
+forces, which vanish outside stance, two options restore physical plausibility:
+
+- `fill_value='zero'`: outside the original domain the force is zero (rather than the edge value);
+- `cover=True`: the affine map is constrained to b ≤ 0 and a + b ≥ 1, so that γ([0,1]) ⊇ [0,1]
+  and the whole original observation, including both zero ends, is retained. (With `cover=True`
+  the warps are not re-centred, because re-centring would re-introduce cut-off ends.)
+
+`fill_value='extrapolate'` (linear extrapolation of the end slopes) is also available.
+'''),
+code('''
+res_affine_cover = reg1d.register_affine(yi, cover=True, fill_value='zero')
+print('(a, b) with cover=True:'); print(res_affine_cover.info['params'].round(3))
+fig,AX = plt.subplots(1, 2, figsize=(12,4.5))
+plot_Dorn2012(res_affine.y, xlabel='Time (%)', title="affine, default ('edge' fill, unconstrained)", ax=AX[0])
+plot_Dorn2012(res_affine_cover.y, xlabel='Time (%)', title="affine, cover=True, fill_value='zero'", ax=AX[1])
+plt.tight_layout(); plt.show()
 '''),
 md('''
 ## Landmark registration
@@ -278,6 +333,45 @@ res_dtw3.plot(group=speed, colors=colors, titles=('Linear', 'DTW (window 0.1)', 
 plt.show()
 '''),
 md('''
+#### Smoother, physically plausible DTW warps
+
+Plain DTW produces piecewise paths whose warps have discontinuous slopes (and flat segments),
+which is unacceptable for signals such as forces that have smooth first derivatives. Three
+remedies are available, separately or combined:
+
+1. **Derivative DTW** (`derivative=True`; Keogh & Pazzani 2001) matches derivative estimates
+   instead of values. Matching is then shape-based rather than amplitude-based, which removes
+   most of the amplitude-driven staircase matching seen above. The path itself is still piecewise.
+2. **Slope-constrained step patterns** (`step_pattern='strict'`, local slopes in [1/2, 2]) forbid
+   horizontal and vertical runs, so the warp is strictly increasing.
+3. **Warp smoothing** (`smooth=sigma`): the square-root slope √γ′ of each DTW warp is smoothed
+   with a Gaussian kernel (width `sigma` in normalised time) and re-integrated. Because √γ′ ≥ 0,
+   the result is always a valid, strictly increasing warp with a continuous derivative, and the
+   total amount of warping is preserved. The same operation is available as
+   `reg1d.warp.smooth_warp` and `Warp1DList.smooth` for any warp.
+
+Note that the smoothing acts on the warp, not on the DTW objective: a smoothed DTW warp is no
+longer optimal for the DTW criterion. It is a post-hoc regularisation, analogous to smoothing
+a landmark warp; an alternative is to use the DTW warp only to initialise a smooth parametric
+refinement (see the continuous method).
+'''),
+code('''
+res_ddtw   = reg1d.register_dtw(yi, derivative=True)
+res_ddtw_s = reg1d.register_dtw(yi, derivative=True, step_pattern='strict', smooth=0.03)
+res_dtw_s  = reg1d.register_dtw(yi, step_pattern='strict', smooth=0.03)
+res_ddtw.plot(group=speed, colors=colors, titles=('Linear', 'Derivative DTW', 'Warps'))
+res_ddtw_s.plot(group=speed, colors=colors, titles=('Linear', 'Derivative DTW, strict, smoothed (0.03)', 'Warps'))
+res_dtw_s.plot(group=speed, colors=colors, titles=('Linear', 'DTW, strict, smoothed (0.03)', 'Warps'))
+plt.show()
+
+# first derivatives of the registered data: smooth for the smoothed warps
+fig,AX = plt.subplots(1, 3, figsize=(15,4))
+for ax,(name,r) in zip(AX, [('DTW (symmetric2)', res_dtw), ('DTW strict + smooth', res_dtw_s), ('SRSF', reg1d.register_srsf(yi, max_iter=5))]):
+    plot_Dorn2012(np.gradient(r.y, axis=1), xlabel='Time (%)', ylabel='dF/dt (N / frame)', title=name + ': first derivative', ax=ax)
+    if ax is not AX[0]: ax.get_legend().remove()
+plt.tight_layout(); plt.show()
+'''),
+md('''
 ## Continuous (parametric) registration
 
 Following Ramsay & Li (1998), the warp is γ(t) = ∫₀ᵗ exp(W) / ∫₀¹ exp(W) with W expanded in a
@@ -291,6 +385,32 @@ res_c4 = reg1d.register_continuous(yi, n_basis=4)
 res_c8 = reg1d.register_continuous(yi, n_basis=8, lam=1e-3)
 res_c4.plot(group=speed, colors=colors, titles=('Linear', 'Continuous (4 basis fns)', 'Warps'))
 res_c8.plot(group=speed, colors=colors, titles=('Linear', 'Continuous (8 basis fns, penalised)', 'Warps'))
+plt.show()
+'''),
+md('''
+## Self-modelling (shape-invariant model) registration
+
+`register_sim` fits y_i = a_i μ(γ_i) + b_i (Kneip & Gasser 1988; Gervini & Gasser 2004): a common
+shape function μ, per-observation amplitude scale and offset, and smooth parametric warps.
+Modelling amplitude explicitly is attractive for these data, where peak force roughly doubles
+across speeds.
+'''),
+code('''
+res_sim = reg1d.register_sim(yi, n_basis=6)
+print('amplitude (a, b) per observation:'); print(res_sim.info['amplitude'].round(2))
+res_sim.plot(group=speed, colors=colors, titles=('Linear', 'Self-modelling registration', 'Warps'))
+plt.show()
+'''),
+md('''
+## Pairwise synchronisation
+
+`register_pairwise` (Tang & Müller 2008) aligns every pair of observations and takes each
+observation's warp as the Karcher mean of its warps to all others. It needs no template, at the
+cost of J(J−1)/2 pairwise alignments (here with the SRSF engine).
+'''),
+code('''
+res_pw = reg1d.register_pairwise(yi, engine='srsf')
+res_pw.plot(group=speed, colors=colors, titles=('Linear', 'Pairwise synchronisation (SRSF engine)', 'Warps'))
 plt.show()
 '''),
 md('''
@@ -321,7 +441,10 @@ results = {
     'landmark'    : res_lm,
     'dtw'         : res_dtw,
     'dtw (strict)': res_dtw2,
+    'ddtw+smooth' : res_ddtw_s,
     'continuous'  : res_c8,
+    'sim'         : res_sim,
+    'pairwise'    : res_pw,
     'srsf'        : res_srsf,
 }
 print(f"{'method':14s} {'SSE about mean':>16s} {'SD of peak time (%)':>22s}")
@@ -332,12 +455,14 @@ for name,r in results.items():
     print(f"{name:14s} {sse:16.3g} {sd:22.2f}")
 '''),
 code('''
-fig,AX = plt.subplots(2, 4, figsize=(16,7))
+fig,AX = plt.subplots(3, 4, figsize=(16,10.5))
 for ax,(name,r) in zip(AX.ravel(), results.items()):
     yy = yi if r is None else r.y
     plot_Dorn2012(yy, xlabel='Time (%)', title=name, ax=ax)
     if ax is not AX[0,0]:
         ax.get_legend().remove()
+for ax in AX.ravel()[len(results):]:
+    ax.axis('off')
 plt.tight_layout()
 plt.show()
 '''),
@@ -350,7 +475,11 @@ md('''
   only method that guarantees a chosen event is aligned exactly; automatic landmark detection is
   fragile for the braking dips.
 - **DTW**: fast, but amplitude-driven; produces staircase warps on these data unless constrained,
-  and its warps are not diffeomorphisms. Useful as a quick first look or with a tight window.
+  and its warps are not diffeomorphisms. Derivative DTW with a slope-constrained step pattern and
+  warp smoothing gives physically plausible warps and a good alignment of the propulsive peak.
+- **Self-modelling**: handles the amplitude differences explicitly; smooth warps; good alignment
+  of the main features, with the same local-minimum caveat as the continuous method.
+- **Pairwise synchronisation**: results close to SRSF (same engine) without a template.
 - **Continuous**: produces smooth, low-dimensional warps; reasonable for the gradual speed-related
   timing shift but cannot resolve the braking dips.
 - **Shift / affine**: correct only global offsets; of limited value for these data, but useful as a
@@ -480,22 +609,479 @@ plt.show()
 ]
 
 
+# ---------------------------------------------------------------------------
+# notebook 4: multivariate
+# ---------------------------------------------------------------------------
+
+nb4 = [
+md("""
+# 4 — Multivariate (vector-valued) registration
+
+The original Dorn et al. (2012) data contain all three ground reaction force components
+(anteroposterior, vertical, mediolateral) for 18 trials at four running speeds. Registering the
+three components *jointly* — one warp per trial, chosen so that all three components are aligned
+at once — is preferable to registering them separately (which would give three different time
+axes for the same trial) or to registering on one component and hoping the others follow.
+
+`register_srsf` accepts a (J,Q,D) array and then uses the vector SRSF
+q = f′ / √‖f′‖ (Srivastava et al. 2011; the same dynamic programming applies, with the
+squared Euclidean norm of the D-dimensional difference in the segment costs).
+"""),
+code(SETUP),
+code("""
+dataset = reg1d.data.Dorn2012MV()
+print(dataset)
+Y       = dataset.resample(101)            # (18,101,3): linear registration of every component
+speed   = dataset.group                    # 0..3
+comps   = dataset.components
+colors  = ['k','b','g','r']
+
+def plot3(Y, title, axes=None):
+    fig,AX = plt.subplots(1, 3, figsize=(15,4)) if axes is None else (None, axes)
+    for k,ax in enumerate(AX):
+        reg1d.plot.plot_curves(Y[:,:,k], group=speed, ax=ax, colors=colors, x='percent', legend=(k==0),
+                               labels=[f'{v} m/s' for v in np.unique(dataset.speed)])
+        ax.set_title(f'{title}: {comps[k]}'); ax.set_xlabel('Time (%)')
+    AX[0].set_ylabel('Force (N)')
+    return AX
+
+plot3(Y, 'linear'); plt.tight_layout(); plt.show()
+"""),
+md("""
+### Joint (multivariate) SRSF registration
+"""),
+code("""
+res_mv = reg1d.register_srsf(Y, max_iter=5)
+print(res_mv)
+plot3(res_mv.y, 'multivariate SRSF'); plt.tight_layout(); plt.show()
+fig,ax = plt.subplots(figsize=(5,4))
+res_mv.warps.plot(ax=ax, group=speed, colors=colors, legend=False); ax.set_title('warps (one per trial)')
+plt.show()
+"""),
+md("""
+### Comparison with univariate registration on each component
+
+Registering each component separately gives three different warps per trial (and therefore
+three inconsistent time axes); registering on one component only (here the vertical force,
+the usual choice) and applying its warps to the others (`result.apply`) keeps one time axis but
+aligns the other components only insofar as their features co-occur with those of the driving
+component.
+"""),
+code("""
+res_v   = reg1d.register_srsf(Y[:,:,1], max_iter=5)          # vertical only
+Y_from_v = res_v.apply(Y)                                    # apply vertical warps to all components
+res_sep = [reg1d.register_srsf(Y[:,:,k], max_iter=5) for k in range(3)]
+Y_sep   = np.stack([r.y for r in res_sep], axis=2)
+
+def event_sd(Y):
+    # SD (in % stance) of three event times: AP propulsive peak, vertical rising edge (50% of max), ML largest |F|
+    ap = np.argmax(Y[:,:,0], axis=1)
+    v  = np.array([np.argmax(yy > 0.5*yy.max()) for yy in Y[:,:,1]])
+    ml = np.argmax(np.abs(Y[:,:,2]), axis=1)
+    return [float(np.std(e).round(2)) for e in (ap, v, ml)]
+print('SD (% stance) of event times [AP peak, vertical 50%-rise, ML |peak|]')
+print('  linear only            ', event_sd(Y))
+print('  multivariate SRSF      ', event_sd(res_mv.y))
+print('  vertical-driven warps  ', event_sd(Y_from_v))
+print('  separate per component ', event_sd(Y_sep), '  (three different time axes per trial)')
+fig,AX = plt.subplots(2, 3, figsize=(15,8))
+plot3(Y_from_v, 'vertical-driven', AX[0]); plot3(Y_sep, 'separate', AX[1])
+plt.tight_layout(); plt.show()
+"""),
+md("""
+The joint registration is the only approach that yields a single, physically consistent time
+axis per trial while using the information in all three components — but a single warp per
+trial is necessarily a compromise between the components: in the table above the joint warps
+align the anteroposterior peak much better than linear registration, while the vertical rising
+edge is aligned less well than when the vertical component alone drives the warps. Which
+compromise is right depends on the research question. Note also that the vector SRSF weights
+components by their slopes, so the large vertical force dominates and the small mediolateral
+component contributes little; rescaling components (e.g. to unit variance) before registration
+changes this weighting and may be desirable when the components have very different magnitudes.
+"""),
+]
+
+
+# ---------------------------------------------------------------------------
+# notebook: warp centering issue
+# ---------------------------------------------------------------------------
+
+nb_center = [
+md("""
+# The warp-centering issue
+
+### The question
+
+Group registration produces J warps γ_i and registered observations y_i∘γ_i. The registered
+observations live on the time axis of the **template**, but the template's own timing is
+arbitrary: it depends on which observation seeded the iteration, on the method, and on the
+initial cross-sectional mean. Any common warp η can be applied to all γ_i (γ_i ↦ γ_i∘η) without
+changing the *relative* alignment of the observations; it only changes the time axis on which
+the registered data and the template are reported.
+
+**Centering** picks one representative from this family: the warps are composed with the inverse
+of their Karcher mean, γ_i ↦ γ_i∘γ̄⁻¹, so that the Karcher mean of the centered warps is the
+identity. The registered data then keep the *average timing of the original data*, which is
+the natural convention when the goal is to describe timing differences between observations or
+groups (the displacement fields are then deviations from the group-average timing).
+
+This notebook illustrates (i) what centering does, (ii) why it matters for the interpretation of
+displacement fields and for hypothesis tests on them, and (iii) the complications for DTW and
+landmark registration, where the question of the default is still open.
+"""),
+code(SETUP),
+code("""
+dataset = reg1d.data.Dorn2012()
+speed   = dataset.group
+yi      = reg1d.register_linear(dataset.y, n=101).y
+colors  = ['k','b','g','r']
+t       = np.linspace(0, 1, 101)
+"""),
+md("""
+### 1. SRSF: centered versus uncentered
+
+With `center=False` the registered data inherit the timing of the initial template (the
+observation closest to the mean SRSF). With `center=True` (default) the Karcher mean of the warps is
+the identity. The alignment of the observations relative to each other is identical; only the
+common time axis differs.
+"""),
+code("""
+r_c  = reg1d.register_srsf(yi, max_iter=5, center=True)
+r_u  = reg1d.register_srsf(yi, max_iter=5, center=False)
+fig,AX = plt.subplots(2, 3, figsize=(15,8))
+for row,(r,name) in enumerate([(r_c,'centered'),(r_u,'uncentered')]):
+    reg1d.plot.plot_curves(r.y, group=speed, ax=AX[row,0], colors=colors, x='percent'); AX[row,0].set_title(f'{name}: registered')
+    r.warps.plot(ax=AX[row,1], group=speed, colors=colors, legend=False); AX[row,1].plot(t, r.warps.mean().w, 'm', lw=3, label='Karcher mean'); AX[row,1].legend(); AX[row,1].set_title(f'{name}: warps')
+    reg1d.plot.plot_displacement_fields(r.warps.asarray(), group=speed, ax=AX[row,2], colors=colors, legend=False); AX[row,2].set_title(f'{name}: displacement fields')
+plt.tight_layout(); plt.show()
+print('mean displacement (normalised time), centered  :', np.abs(r_c.displacement_fields.mean(axis=0)).max().round(4))
+print('mean displacement (normalised time), uncentered:', np.abs(r_u.displacement_fields.mean(axis=0)).max().round(4))
+"""),
+md("""
+### 2. Why it matters: hypothesis tests on displacement fields
+
+A two-sample test on displacement fields (the nlreg1d timing test) compares group means of
+d_i(t). A common warp η adds (approximately) the same displacement to every observation, so a
+*difference* between groups is nearly invariant to centering — but the individual displacement
+fields, their pooled variance estimate near the boundaries, and any one-sample test (e.g. "is
+this group's timing different from linear time?") are not. Centering makes the reference the
+average timing of the sample, which is the only choice that does not depend on an arbitrary
+observation.
+"""),
+code("""
+from reg1d import stats
+groupAB = np.where(speed <= 1, 0, 1)         # slow (0,1) vs fast (2,3)
+for r,name in [(r_c,'centered'),(r_u,'uncentered')]:
+    d  = r.displacement_fields
+    tt = stats.permutation_ttest2(d[groupAB==0], d[groupAB==1], n_perm=500, random_state=0)
+    print(f'{name:11s}: max |t| = {np.abs(tt["t"]).max():.2f}, threshold = {tt["threshold"]:.2f}, p = {tt["p"]:.3f}, clusters = {tt["clusters"]}')
+"""),
+md("""
+### 3. Centering is possible only for invertible warps
+
+Centering composes warps with the inverse of their Karcher mean, and the Karcher mean is defined
+through ψ = √γ′. Both require γ′ > 0. This is where the methods differ:
+
+| method | warps | centering |
+|---|---|---|
+| SRSF, continuous, sim, pairwise, bayes | strictly increasing (diffeomorphisms) | applied by default (`center=True`) |
+| landmark | strictly increasing (PCHIP / linear interpolant) | implicit: the targets are the *mean landmark times*, so the average timing is preserved at the landmarks (but the Karcher mean of the warps is not exactly the identity) |
+| DTW | monotone but with flat segments (γ′ = 0 on horizontal runs) unless `step_pattern='strict'` or `smooth>0` | ψ = 0 on flat segments: the Karcher mean is still computable but the inverse of a flat warp is not unique, so `register_dtw` currently returns **uncentered** warps |
+"""),
+code("""
+r_lm  = reg1d.register_landmark(yi, kinds=('zero','max'))
+r_dtw = reg1d.register_dtw(yi)
+r_dtws= reg1d.register_dtw(yi, step_pattern='strict', smooth=0.03)
+for r,name in [(r_lm,'landmark (mean targets)'),(r_dtw,'dtw (symmetric2)'),(r_dtws,'dtw strict+smooth')]:
+    g  = r.warps.asarray()
+    km = reg1d.warp.karcher_mean_warp(g)
+    print(f'{name:26s}: max |Karcher mean - identity| = {np.abs(km - t).max():.4f}, min slope = {np.gradient(g, axis=1).min()*100:.3f}')
+# centering the DTW warps after smoothing is well defined:
+wc = r_dtws.warps.center()
+print('dtw strict+smooth, after centering: max |Karcher mean - identity| =', np.abs(wc.mean().w - t).max().round(4))
+"""),
+md("""
+### 4. Alternatives to Karcher-mean centering
+
+1. **Karcher mean = identity** (current default for the diffeomorphic methods). Reference =
+   average timing under the Fisher–Rao geometry. Principled, method-independent, but requires
+   invertible warps.
+2. **Pointwise (arithmetic) mean of the warps = identity.** Simpler, works for DTW warps with
+   flat segments (the arithmetic mean of monotone functions is monotone), but the arithmetic mean
+   of warps is not a proper average in the warp geometry and the result depends slightly on
+   whether one averages the warps or their inverses.
+3. **Landmark-anchored reference**: choose η so that a chosen event (e.g. the propulsive peak)
+   sits at its mean time. Interpretable for the user, but depends on a landmark choice.
+4. **No centering**: registered data live on the template's time axis; simplest, but the
+   reference is arbitrary and differs between methods, which complicates comparisons between
+   methods (as in notebook 2) and between studies.
+
+For a front end, option 1 as default for diffeomorphic warps, with option 2 as the fallback for
+DTW (or, better, making DTW warps diffeomorphic first via `step_pattern='strict'` and `smooth`),
+and option 3 offered as an explicit user choice, seems the most defensible combination; but the
+decision affects every displacement-field statistic downstream and is left open here.
+"""),
+code("""
+# option 2 for the raw DTW warps: pointwise-mean centering (illustration only)
+g    = r_dtw.warps.asarray()
+gbar = g.mean(axis=0)
+g2   = np.array([np.interp(reg1d.warp.invert(gbar), t, gg) for gg in g])     # gamma_i o gbar^{-1}
+fig,AX = plt.subplots(1, 2, figsize=(10,4))
+reg1d.plot.plot_warps(g, group=speed, ax=AX[0], colors=colors, legend=False); AX[0].plot(t, gbar, 'm', lw=3); AX[0].set_title('DTW warps and their pointwise mean')
+reg1d.plot.plot_warps(g2, group=speed, ax=AX[1], colors=colors, legend=False); AX[1].plot(t, g2.mean(axis=0), 'm', lw=3); AX[1].set_title('after pointwise-mean centering')
+plt.show()
+"""),
+]
+
+
+# ---------------------------------------------------------------------------
+# notebook: Bayesian vs nlreg1d
+# ---------------------------------------------------------------------------
+
+nb_bayes = [
+md("""
+# Bayesian registration versus the nlreg1d timing analysis
+
+### Background
+
+The nlreg1d paper tests for **timing effects** between two groups by (1) registering all
+observations with SRSF alignment, (2) computing each observation's displacement field
+d_i(t) (deviation from linear time), and (3) running a two-sample test on the d_i(t) with
+nonparametric (permutation, max-t) inference; amplitude effects are tested the same way on the
+registered observations. Registration is treated as a deterministic preprocessing step: each
+warp is a point estimate, and the uncertainty of the registration itself does not enter the
+inference.
+
+**Bayesian registration** (Cheng, Dryden & Huang 2016; Lu, Herbei & Kurtek 2017) instead treats
+each warp as an unknown with a posterior distribution: with a Gaussian error model in SRSF space
+and a smoothness prior on the warp, MCMC yields posterior samples of γ_i, hence posterior means
+and credible bands for the displacement fields. `reg1d.bayes` implements a simplified version
+(finite cosine basis in the tangent space of the identity warp, pCN Metropolis sampling, Gibbs
+update of the noise variance; see `ALGORITHMS.md`).
+
+This notebook reproduces the nlreg1d analysis of the two simulated datasets — **A** (pure
+amplitude effect) and **B** (pure timing effect) — with `reg1d`, then repeats it with Bayesian
+registration and compares the conclusions.
+"""),
+code(SETUP),
+code("""
+from reg1d import stats, bayes
+np.random.seed(0)
+t      = np.linspace(0, 1, 101)
+colors = ['0.0', (0.3,0.5,0.99)]
+
+def load(name):
+    ds = reg1d.data.SimulatedA() if name == 'A' else reg1d.data.SimulatedB()
+    return ds.y, ds.group
+
+def plot_groups(y, group, ax, title, ylabel=''):
+    reg1d.plot.plot_curves(y, group=group, ax=ax, colors=colors, x='percent', lw=0.7,
+                           labels=['Group 0', 'Group 1'])
+    ax.set_title(title); ax.set_xlabel('Domain position (%)'); ax.set_ylabel(ylabel)
+
+def plot_test(res, ax, title):
+    x = np.linspace(0, 100, res['t'].size)
+    ax.plot(x, res['t'], 'k'); ax.axhline(res['threshold'], color='r', ls='--'); ax.axhline(-res['threshold'], color='r', ls='--')
+    for lo,hi in res['clusters']:
+        ax.axvspan(x[lo], x[hi], color='r', alpha=0.2)
+    ax.axhline(0, color='k', lw=0.5); ax.set_title(f"{title}  (p = {res['p']:.3f})"); ax.set_xlabel('Domain position (%)'); ax.set_ylabel('t')
+
+fig,AX = plt.subplots(1, 2, figsize=(12,4))
+for ax,name in zip(AX, 'AB'):
+    y,g = load(name); plot_groups(y, g, ax, f'Dataset {name}', 'Dependent variable')
+plt.tight_layout(); plt.show()
+"""),
+md("""
+## 1. The nlreg1d analysis with reg1d (point-estimate registration)
+
+SRSF registration (5 iterations, as in `fig_datasetA.py` / `fig_datasetB.py`), followed by
+permutation two-sample tests on the registered data (amplitude) and on the displacement fields
+(timing). `reg1d.stats.timing_test` wraps both tests; the permutation inference uses the maximum
+|t| over the domain (the "tmax" inference of SnPM).
+"""),
+code("""
+def analyse(lam, show=True):
+    out = {}
+    if show:
+        fig,AX = plt.subplots(2, 4, figsize=(18,8))
+    for row,name in enumerate('AB'):
+        y,g   = load(name)
+        r     = reg1d.register_srsf(y, max_iter=5, lam=lam)
+        ta,tt = stats.timing_test(r, g, n_perm=1000, random_state=0)
+        out[name] = dict(result=r, amp=ta, tim=tt)
+        print(f'lam = {lam:5g}, dataset {name}: amplitude p = {ta["p"]:.3f} {ta["clusters"]},  timing p = {tt["p"]:.3f} {tt["clusters"]}')
+        if show:
+            plot_groups(r.y, g, AX[row,0], f'{name}: registered (lam = {lam:g})', 'DV')
+            plot_test(ta, AX[row,1], f'{name}: amplitude test')
+            plot_groups(r.displacement_fields, g, AX[row,2], f'{name}: displacement fields', 'Displacement')
+            plot_test(tt, AX[row,3], f'{name}: timing test')
+    if show:
+        plt.tight_layout(); plt.show()
+    return out
+
+point0 = analyse(lam=0)
+"""),
+md("""
+Dataset B behaves as in the paper (timing effect, no amplitude effect). Dataset A shows the
+expected amplitude effect, **but also a spurious timing effect near the start of the domain**.
+The displacement fields show why: away from the bump the simulated curves are flat and noisy, and
+the SRSF (the square root of the derivative) amplifies that noise, so the dynamic programme finds
+large, noise-driven warps in the flat regions where the objective is nearly indifferent. The
+same happens with `fdasrsf` (whose warps differ from `reg1d`'s in exactly these regions and
+which, on the same data, gives a timing-test p-value of about 0.08 with the permutation test
+used here), i.e. the outcome of the timing test in flat regions is decided by algorithmic details
+rather than by the data.
+
+The remedy in the SRSF framework is the elasticity penalty `lam`, which penalises departure of
+√γ′ from 1 (the same `lam` as in `fdasrsf.srsf_align`). Its scale is that of the squared SRSF
+distance, so for these data (SRSF values of order 10) a value of the order of 100 is needed to
+dominate the noise-driven cost differences while leaving the genuine alignment of the peak
+intact:
+"""),
+code("""
+point = analyse(lam=100)
+"""),
+md("""
+With `lam = 100` both datasets behave exactly as intended: A has an amplitude effect and no
+timing effect, B a timing effect and no amplitude effect. The penalty is therefore used for the
+remainder of this notebook (both for the SRSF template and for the initialisation of the Bayesian
+chains). This sensitivity to `lam` in flat regions is itself a strong argument for
+uncertainty-aware registration.
+
+## 2. Bayesian registration
+
+For each observation, `register_bayes` samples the posterior of its warp to the SRSF
+Karcher-mean template. The point-estimate (dynamic programming) warp initialises each chain.
+The credible band of the displacement field is the new information: it says how well determined
+each observation's timing is.
+"""),
+code("""
+import time
+post = {}
+for name in 'AB':
+    y,g = load(name)
+    t0  = time.time()
+    rb  = reg1d.register_bayes(y, n_samples=1500, burn=1000, K=8, tau=0.3, random_state=1, max_iter=5, lam=100)
+    post[name] = rb
+    print(f'Dataset {name}: {time.time()-t0:.0f} s, mean acceptance rate {rb.info["accept"].mean():.2f}')
+
+fig,AX = plt.subplots(2, 2, figsize=(12,8))
+x = np.linspace(0, 100, 101)
+for row,name in enumerate('AB'):
+    rb = post[name]; y,g = load(name)
+    for i in range(rb.J):
+        ci = rb.info['disp_ci'][i]
+        AX[row,0].fill_between(x, ci[0], ci[1], color=colors[g[i]], alpha=0.15)
+    plot_groups(rb.displacement_fields, g, AX[row,0], f'{name}: posterior-mean displacement fields with 95% credible bands', 'Displacement')
+    # posterior of the group difference in mean displacement (registration uncertainty only)
+    S    = rb.info['samples']                                      # (J,S,Q) warp samples
+    D    = np.array([reg1d.warp.displacement_field(s) for s in S]) # (J,S,Q) displacement samples
+    diff = D[g==1].mean(axis=0) - D[g==0].mean(axis=0)             # (S,Q)
+    lo,hi = np.percentile(diff, [2.5, 97.5], axis=0)
+    AX[row,1].fill_between(x, lo, hi, color='r', alpha=0.25, label='95% credible band')
+    AX[row,1].plot(x, diff.mean(axis=0), 'r', label='posterior mean')
+    AX[row,1].axhline(0, color='k', lw=0.5); AX[row,1].legend()
+    AX[row,1].set_title(f'{name}: group difference in mean displacement (registration uncertainty only)')
+plt.tight_layout(); plt.show()
+"""),
+md("""
+Note that the credible band of the *group difference* (right column) excludes zero over most of
+the domain for dataset A even though A has no timing effect. This is not a contradiction: that
+band quantifies only how precisely each individual warp is determined by its own observation;
+it says nothing about whether the two groups of warps differ relative to the between-subject
+variability, which is what the frequentist timing test measures. A Bayesian answer to the
+group question requires either a hierarchical model or the propagation described next.
+
+## 3. Propagating registration uncertainty into the timing test
+
+The credible band of the group difference above reflects only the uncertainty of the
+registration (how well each warp is determined given its observation), not the between-subject
+variability that the frequentist test is built on. The two sources can be combined in a
+simple *posterior-predictive* way: for each posterior draw s, take the s-th warp sample of every
+observation, compute the displacement fields, and run the nlreg1d timing test; the distribution
+of the resulting test statistics and p-values across draws shows whether the conclusion of the
+point-estimate analysis is robust to registration uncertainty.
+"""),
+code("""
+n_draw = 60
+fig,AX = plt.subplots(1, 2, figsize=(12,4))
+for ax,name in zip(AX, 'AB'):
+    rb = post[name]; y,g = load(name)
+    S  = rb.info['samples']; idx = np.linspace(0, S.shape[1]-1, n_draw).astype(int)
+    pvals, tmaxs = [], []
+    for s in idx:
+        d  = reg1d.warp.displacement_field(S[:, s, :])
+        tt = stats.permutation_ttest2(d[g==0], d[g==1], n_perm=300, random_state=int(s))
+        pvals.append(tt['p']); tmaxs.append(np.abs(tt['t']).max())
+        ax.plot(x, tt['t'], color='0.6', lw=0.5)
+    ax.plot(x, point[name]['tim']['t'], 'k', lw=2, label='point-estimate registration')
+    ax.axhline(point[name]['tim']['threshold'], color='r', ls='--', label='threshold (point estimate)')
+    ax.axhline(-point[name]['tim']['threshold'], color='r', ls='--')
+    ax.set_title(f'{name}: timing-test t curves over {n_draw} posterior draws'); ax.legend(); ax.set_xlabel('Domain position (%)')
+    pvals = np.array(pvals)
+    print(f'Dataset {name}: point-estimate p = {point[name]["tim"]["p"]:.3f};  over posterior draws: median p = {np.median(pvals):.3f}, '
+          f'fraction of draws with p < 0.05 = {(pvals < 0.05).mean():.2f}, max|t| range = [{min(tmaxs):.2f}, {max(tmaxs):.2f}]')
+plt.tight_layout(); plt.show()
+"""),
+md("""
+## 4. How the two approaches relate
+
+- **Same estimand, different treatment of uncertainty.** Both approaches quantify timing as a
+  displacement field derived from SRSF warps. nlreg1d uses one warp per observation and puts all
+  uncertainty into the between-subject variability of the displacement fields; Bayesian
+  registration adds a second layer — the uncertainty of each warp given its observation — which
+  is invisible to the point-estimate analysis.
+- **When it matters.** Around sharp features the posterior of each warp is narrow, the
+  posterior-mean warps are close to the dynamic-programming warps, and the timing test's
+  conclusion is stable across posterior draws. Registration uncertainty becomes important for
+  noisy data, in flat regions of the observations (where the warp is poorly identified — the
+  credible bands widen there, and, as section 1 showed, point-estimate methods can produce
+  spurious group differences there unless penalised), and near the domain boundaries.
+- **What Bayesian registration offers that nlreg1d cannot.** (i) Per-observation credible
+  bands for timing (useful for flagging observations whose registration is unreliable, e.g. in a
+  front end); (ii) a principled way to propagate registration uncertainty into downstream tests
+  (posterior-predictive checks as above, or a fully hierarchical model with group-level warp
+  distributions, which would replace the permutation test altogether); (iii) posterior
+  probabilities such as P(displacement difference > 0 at t).
+- **Costs and caveats.** MCMC is roughly two orders of magnitude slower than dynamic programming;
+  results depend on the prior scale (`tau`), the basis size (`K`) and the noise model; and the
+  credible bands of this simple model are known to be optimistic because SRSF residuals are
+  autocorrelated (the `n_eff` argument tempers the likelihood to compensate). The template is
+  fixed at the SRSF Karcher mean; a full treatment would also put a prior on the template.
+- **Suggested direction.** A hierarchical Bayesian model (observation warps ~ group-level warp
+  distributions on the sphere of √γ′, with a prior on the group difference) would give a direct
+  Bayesian counterpart to the nlreg1d timing test, including the amplitude test on the aligned
+  functions. The pieces needed (tangent-space parameterisation, pCN sampling) are in `reg1d.bayes`.
+"""),
+]
+
+
 def build(cells, name):
-	nb = nbf.v4.new_notebook()
-	nb['cells'] = cells
-	nb['metadata']['kernelspec'] = dict(name='python3', display_name='Python 3', language='python')
-	ep = ExecutePreprocessor(timeout=1200, kernel_name='python3')
-	ep.preprocess(nb, {'metadata': {'path': HERE}})
-	fpath = os.path.join(HERE, name + '.ipynb')
-	nbf.write(nb, fpath)
-	html, _ = HTMLExporter().from_notebook_node(nb)
-	os.makedirs(os.path.join(HERE, 'html'), exist_ok=True)
-	with open(os.path.join(HERE, 'html', name + '.html'), 'w') as f:
-		f.write(html)
-	print('wrote', fpath)
+    nb = nbf.v4.new_notebook()
+    nb['cells'] = cells
+    nb['metadata']['kernelspec'] = dict(name='python3', display_name='Python 3', language='python')
+    ep = ExecutePreprocessor(timeout=1200, kernel_name='python3')
+    ep.preprocess(nb, {'metadata': {'path': HERE}})
+    fpath = os.path.join(HERE, name + '.ipynb')
+    nbf.write(nb, fpath)
+    html, _ = HTMLExporter().from_notebook_node(nb)
+    os.makedirs(os.path.join(HERE, 'html'), exist_ok=True)
+    with open(os.path.join(HERE, 'html', name + '.html'), 'w') as f:
+        f.write(html)
+    print('wrote', fpath)
+
+
+ALL = {
+    '1-Registration'      : nb1,
+    '2-Methods'           : nb2,
+    '3-Warps'             : nb3,
+    '4-Multivariate'      : nb4,
+    'WarpCenteringIssue'  : nb_center,
+    'Bayesian-vs-nlreg1d' : nb_bayes,
+}
 
 
 if __name__ == '__main__':
-	build(nb1, '1-Registration')
-	build(nb2, '2-Methods')
-	build(nb3, '3-Warps')
+    names = sys.argv[1:] or list(ALL)
+    for name in names:
+        build(ALL[name], name)
