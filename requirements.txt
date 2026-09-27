@@ -1,4 +1,4 @@
-# runtime dependencies of reg1d (all BSD-licensed, GPLv3-compatible)
+# runtime dependencies of registration1d (all BSD-licensed, GPLv3-compatible)
 numpy>=1.22
 scipy>=1.8
 matplotlib>=3.5

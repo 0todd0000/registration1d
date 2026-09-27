@@ -1,9 +1,11 @@
 '''
-reg1d: linear and nonlinear registration of one-dimensional data.
+registration1d: linear and nonlinear registration of one-dimensional data.
 
 Quick start:
 
->>> import reg1d
+The recommended import convention is  import registration1d as reg1d
+
+>>> import registration1d as reg1d
 >>> dataset = reg1d.data.Dorn2012()
 >>> yi      = reg1d.register_linear( dataset.y, n=101 ).y # (J,101) linearly registered
 >>> yr, wf  = reg1d.register_srsf( yi, max_iter=5 )       # nonlinearly registered + warps

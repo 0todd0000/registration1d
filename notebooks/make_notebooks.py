@@ -22,11 +22,11 @@ def code(s):
 
 SETUP = '''
 import sys, os
-sys.path.insert(0, os.path.abspath('..'))   # so that this notebook finds reg1d without installation
+sys.path.insert(0, os.path.abspath('..'))   # so that this notebook finds registration1d without installation
 import numpy as np
 from matplotlib import pyplot as plt
-import reg1d
-print('reg1d version:', reg1d.__version__)
+import registration1d as reg1d
+print('registration1d version:', reg1d.__version__)
 '''
 
 PLOT_DORN = '''
@@ -59,13 +59,13 @@ plt.show()
 
 nb1 = [
 md('''
-# 1 — Registration with reg1d
+# 1 — Registration with registration1d
 
-This notebook reproduces the workflow of `nlreg1d`'s notebook *3-Registration* using `reg1d`:
+This notebook reproduces the workflow of `nlreg1d`'s notebook *3-Registration* using `registration1d`:
 linear registration by interpolation to a common number of frames, followed by nonlinear
 (elastic, SRSF-based) registration.
 
-`reg1d` differs from `nlreg1d` in one important respect: it depends only on **numpy**, **scipy**
+`registration1d` differs from `nlreg1d` in one important respect: it depends only on **numpy**, **scipy**
 and **matplotlib**. The SRSF registration is implemented directly from the mathematics of the
 square-root slope framework (Srivastava et al. 2011) rather than by wrapping `fdasrsf`, so
 `fdasrsf` and `scikit-fda` do not need to be installed.
@@ -186,8 +186,8 @@ plt.tight_layout(); plt.show()
 md('''
 ### Agreement with fdasrsf (optional)
 
-If `fdasrsf` happens to be installed, the cell below compares the warps found by `reg1d` with
-those found by `fdasrsf.fdawarp.srsf_align` for the same data and settings. `reg1d` is **not**
+If `fdasrsf` happens to be installed, the cell below compares the warps found by `registration1d` with
+those found by `fdasrsf.fdawarp.srsf_align` for the same data and settings. `registration1d` is **not**
 a dependency-free copy of `fdasrsf` — the dynamic programming grid, the numerical derivative used
 for the SRSF and the centring step are all independent implementations — so the two are expected
 to agree closely but not exactly. This cell is skipped silently if `fdasrsf` is unavailable.
@@ -205,7 +205,7 @@ try:
     print('max |warp difference| per observation:', np.abs(wf - wf_fdasrsf).max(axis=1).round(3))
     fig,AX = plt.subplots(1, 2, figsize=(12,4.5))
     plot_Dorn2012(fw.fn.T, xlabel='Time (%)', title='fdasrsf', ax=AX[0])
-    plot_Dorn2012(yr, xlabel='Time (%)', title='reg1d', ax=AX[1])
+    plot_Dorn2012(yr, xlabel='Time (%)', title='registration1d', ax=AX[1])
     plt.tight_layout()
     plt.show()
 except ImportError:
@@ -222,7 +222,7 @@ nb2 = [
 md('''
 # 2 — Registration methods compared
 
-`reg1d` currently implements two linear and four nonlinear registration methods, all callable
+`registration1d` currently implements two linear and four nonlinear registration methods, all callable
 through the same interface and all returning a `RegistrationResult`:
 
 | function | type | warp family |
@@ -800,7 +800,7 @@ comparisons between methods or studies are not. Centering makes the reference th
 of the sample, the only choice that does not depend on an arbitrary observation.
 """),
 code("""
-from reg1d import stats
+from registration1d import stats
 groupAB = np.where(speed <= 1, 0, 1)         # slow (0,1) vs fast (2,3)
 for c,r in res.items():
     d  = r.displacement_fields
@@ -901,12 +901,12 @@ and credible bands for the displacement fields. `reg1d.bayes` implements a simpl
 update of the noise variance; see `ALGORITHMS.md`).
 
 This notebook reproduces the nlreg1d analysis of the two simulated datasets — **A** (pure
-amplitude effect) and **B** (pure timing effect) — with `reg1d`, then repeats it with Bayesian
+amplitude effect) and **B** (pure timing effect) — with `registration1d`, then repeats it with Bayesian
 registration and compares the conclusions.
 """),
 code(SETUP),
 code("""
-from reg1d import stats, bayes
+from registration1d import stats, bayes
 np.random.seed(0)
 t      = np.linspace(0, 1, 101)
 colors = ['0.0', (0.3,0.5,0.99)]
@@ -933,7 +933,7 @@ for ax,name in zip(AX, 'AB'):
 plt.tight_layout(); plt.show()
 """),
 md("""
-## 1. The nlreg1d analysis with reg1d (point-estimate registration)
+## 1. The nlreg1d analysis with registration1d (point-estimate registration)
 
 SRSF registration (5 iterations, as in `fig_datasetA.py` / `fig_datasetB.py`), followed by
 permutation two-sample tests on the registered data (amplitude) and on the displacement fields
@@ -968,7 +968,7 @@ expected amplitude effect, **but also a spurious timing effect near the start of
 The displacement fields show why: away from the bump the simulated curves are flat and noisy, and
 the SRSF (the square root of the derivative) amplifies that noise, so the dynamic programme finds
 large, noise-driven warps in the flat regions where the objective is nearly indifferent. The
-same happens with `fdasrsf` (whose warps differ from `reg1d`'s in exactly these regions and
+same happens with `fdasrsf` (whose warps differ from `registration1d`'s in exactly these regions and
 which, on the same data, gives a timing-test p-value of about 0.08 with the permutation test
 used here), i.e. the outcome of the timing test in flat regions is decided by algorithmic details
 rather than by the data.
@@ -1118,7 +1118,7 @@ is inflated relative to a long (slow) trial by the ratio of their durations. Sin
 q = sign(f′)√|f′| — and derivative DTW likewise works on f′ — the elastic alignment then compares
 slopes expressed in different physical time units.
 
-`reg1d` now offers **real-time registration**: pass the observations as a list (different
+`registration1d` now offers **real-time registration**: pass the observations as a list (different
 lengths allowed) together with their sampling interval / frequency / time vectors, and
 
 - the observations are never resampled before alignment;

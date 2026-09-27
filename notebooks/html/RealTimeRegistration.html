@@ -7796,7 +7796,7 @@ a.anchor-link {
 <!-- End of mermaid configuration --></head>
 <body class="jp-Notebook" data-jp-theme-light="true" data-jp-theme-name="JupyterLab Light">
 <main>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=7112834d">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=06178977">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7809,7 +7809,7 @@ The rescaling changes the first derivatives: after normalisation, dF/ds of a sho
 is inflated relative to a long (slow) trial by the ratio of their durations. Since the SRSF is
 q = sign(f′)√|f′| — and derivative DTW likewise works on f′ — the elastic alignment then compares
 slopes expressed in different physical time units.</p>
-<p><code>reg1d</code> now offers <strong>real-time registration</strong>: pass the observations as a list (different
+<p><code>registration1d</code> now offers <strong>real-time registration</strong>: pass the observations as a list (different
 lengths allowed) together with their sampling interval / frequency / time vectors, and</p>
 <ul>
 <li>the observations are never resampled before alignment;</li>
@@ -7827,7 +7827,7 @@ difference in derivative scaling is large).</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=9aa34cb1">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=c76b1c5e">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7836,11 +7836,11 @@ difference in derivative scaling is large).</p>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">sys</span><span class="o">,</span><span class="w"> </span><span class="nn">os</span>
-<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="s1">'..'</span><span class="p">))</span>   <span class="c1"># so that this notebook finds reg1d without installation</span>
+<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="s1">'..'</span><span class="p">))</span>   <span class="c1"># so that this notebook finds registration1d without installation</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">reg1d</span>
-<span class="nb">print</span><span class="p">(</span><span class="s1">'reg1d version:'</span><span class="p">,</span> <span class="n">reg1d</span><span class="o">.</span><span class="n">__version__</span><span class="p">)</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">registration1d</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">reg1d</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">'registration1d version:'</span><span class="p">,</span> <span class="n">reg1d</span><span class="o">.</span><span class="n">__version__</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -7853,13 +7853,13 @@ difference in derivative scaling is large).</p>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>reg1d version: 0.0.2
+<pre>registration1d version: 0.0.2
 </pre>
 </div>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=6dd937ef">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=c57f83c1">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7910,7 +7910,7 @@ durations (s): [0.365 0.383 0.299 0.299 0.232 0.238 0.185 0.185]
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=642ab1ae">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=3528e132">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7920,7 +7920,7 @@ durations (s): [0.365 0.383 0.299 0.299 0.232 0.238 0.185 0.185]
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=7e54a2ae">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=9bf24dab">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7986,7 +7986,7 @@ SD of propulsive-peak time (% of domain): before 1.20, normalised 0.48, real 0.0
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=e56253dc">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=ebe445d1">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8003,7 +8003,7 @@ seconds: it says by how much a feature of observation i was moved, in physical t
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=bf4cdc2a">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=4ab30930">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8041,7 +8041,7 @@ seconds: it says by how much a feature of observation i was moved, in physical t
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=db74f27f">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=9abf03ad">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8056,7 +8056,7 @@ speeds.</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=619e4872">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=b36acce3">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8090,7 +8090,7 @@ speeds.</p>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=45a2cc66">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=3d8f5f51">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8104,7 +8104,7 @@ with warp smoothing, or set <code>n_ref</code> close to the observation lengths.
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=fe48f7a8">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=6db60c98">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8144,7 +8144,7 @@ with warp smoothing, or set <code>n_ref</code> close to the observation lengths.
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=c98a2644">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=39fda442">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>

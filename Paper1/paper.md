@@ -1,5 +1,5 @@
 ---
-title: 'reg1d: linear and nonlinear registration of one-dimensional data in pure Python'
+title: 'registration1d: linear and nonlinear registration of one-dimensional data in pure Python'
 tags:
   - Python
   - functional data analysis
@@ -32,7 +32,7 @@ observation $y_i$ is composed with a monotone *warping function*
 $\gamma_i$ so that the registered curves $y_i \circ \gamma_i$ share a
 common timing, while the warps themselves record the timing differences.
 
-`reg1d` is a Python package that implements linear and nonlinear
+`registration1d` is a Python package that implements linear and nonlinear
 registration of one-dimensional data behind a single, small interface. All
 methods return the same result object (registered data, warps, template
 and method-specific diagnostics), so that methods can be swapped and
@@ -60,7 +60,7 @@ differently, and none offers the downstream quantities that hypothesis
 tests on timing require (centred warps, displacement fields, warps applied
 to secondary variables).
 
-`reg1d` was written to support the analysis workflow of @Pataky2022, in
+`registration1d` was written to support the analysis workflow of @Pataky2022, in
 which amplitude and timing effects in biomechanical trajectories are
 tested separately after nonlinear registration, and to make that workflow
 reproducible from a lightweight, permissively-dependent package that a
@@ -71,7 +71,7 @@ on which registration methods can be compared.
 
 # State of the field
 
-`reg1d` re-derives, rather than wraps, the main published approaches to
+`registration1d` re-derives, rather than wraps, the main published approaches to
 one-dimensional registration: linear interpolation, shift and affine
 registration [@Ramsay2005]; landmark registration [@Kneip1992];
 continuous (penalised least-squares) registration with smooth monotone
@@ -87,7 +87,7 @@ implementations exist the results agree: the SRSF warps match those of
 `fdasrsf` to within about 0.01 of the domain on the example data, and the
 DTW paths and distances are identical to those of `dtw-python`.
 
-Beyond assembling these methods, `reg1d` adds several pieces that the
+Beyond assembling these methods, `registration1d` adds several pieces that the
 reference packages lack and that arose from applying the methods to
 biomechanical data: registration in *real time* for observations of
 different lengths, so that first derivatives are compared in physical
@@ -104,8 +104,8 @@ of @Pataky2022.
 
 # Software design
 
-The package is organised around three ideas. First, a *warp* is a
-first-class object: `reg1d.warp` provides application, composition,
+The package (imported as `reg1d` by convention) is organised around three
+ideas. First, a *warp* is a first-class object: `reg1d.warp` provides application, composition,
 inversion, displacement fields, Karcher means, centring, smoothing and
 random generation, and every method returns its warps as a `Warp1DList`.
 Second, every registration function returns a `RegistrationResult` with
@@ -132,12 +132,12 @@ for raw dynamic time warping paths.
 
 # Research impact statement
 
-`reg1d` supersedes the `nlreg1d` code released with @Pataky2022, which
+`registration1d` supersedes the `nlreg1d` code released with @Pataky2022, which
 wrapped `fdasrsf` and `scikit-fda`; the published analysis of that paper
 (separate amplitude and timing tests on two simulated datasets and on the
 running data of @Dorn2012) is reproduced in the package's notebooks with
 no external registration dependency. [Add here, before submission:
-preprints, theses or analyses that use `reg1d`; adoption by other groups;
+preprints, theses or analyses that use `registration1d`; adoption by other groups;
 integration into a front end or teaching material. JOSS requires evidence
 of use beyond the authors' own work.]
 

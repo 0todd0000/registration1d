@@ -4,8 +4,8 @@ Tests for reg1d.  Run with:  python -m pytest tests
 
 import numpy as np
 import pytest
-import reg1d
-from reg1d import warp, srsf, dtw, landmark, continuous, linear
+import registration1d as reg1d
+from registration1d import warp, srsf, dtw, landmark, continuous, linear
 
 
 Q = 101
@@ -309,7 +309,7 @@ def test_fill_values():
 # ------------------------------------------------------------------ additional methods
 
 def test_bayes_pair_and_group():
-    from reg1d import bayes
+    from registration1d import bayes
     y1  = _bump(t)
     g   = warp.random_warp(1, Q, sigma=0.3, n_basis=2, random_state=5)
     y2  = warp.apply_warp(y1, g) + 0.02 * np.random.default_rng(3).standard_normal(Q)
@@ -335,7 +335,7 @@ def test_pairwise_and_sim(dorn):
 # ------------------------------------------------------------------ stats helpers
 
 def test_stats_permutation():
-    from reg1d import stats
+    from registration1d import stats
     rng = np.random.default_rng(0)
     yA  = rng.standard_normal((10, Q))
     yB  = rng.standard_normal((10, Q)) + np.where((t > 0.4) & (t < 0.6), 3.0, 0.0)

@@ -5,7 +5,7 @@ import os, sys
 sys.path.insert(0, os.path.abspath('..'))
 import numpy as np
 from matplotlib import pyplot as plt
-import reg1d
+import registration1d as reg1d
 
 HERE    = os.path.dirname(os.path.abspath(__file__))
 dataset = reg1d.data.Dorn2012()

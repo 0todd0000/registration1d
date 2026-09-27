@@ -7,7 +7,7 @@ increasing map of the unit interval onto itself:
     gamma : [0,1] -> [0,1],   gamma(0)=0,  gamma(1)=1,  gamma'(t) > 0
 
 Applying a warp to an observation f yields the time-warped observation
-(f o gamma)(t) = f( gamma(t) ). Throughout reg1d, warps are stored as
+(f o gamma)(t) = f( gamma(t) ). Throughout registration1d, warps are stored as
 (Q,) arrays sampled on the uniform grid t = linspace(0, 1, Q), and a set
 of J warps is stored as a (J,Q) array.
 

@@ -1,4 +1,4 @@
-# Algorithms in reg1d
+# Algorithms in registration1d
 
 Every function is listed with its provenance: **math** means it was written
 directly from the cited mathematical description; no function was copied or

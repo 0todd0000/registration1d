@@ -1,8 +1,8 @@
-# reg1d
+# registration1d
 
 Linear and nonlinear registration of one-dimensional data.
 
-`reg1d` aligns sets of 1D observations (e.g. biomechanical time series) in time.
+`registration1d` aligns sets of 1D observations (e.g. biomechanical time series) in time.
 It depends only on `numpy`, `scipy` and `matplotlib`; the registration
 algorithms are implemented from their mathematical definitions, so no other
 registration package needs to be installed.
@@ -14,7 +14,10 @@ registration package needs to be installed.
 
 ## Quick start
 
-    import reg1d
+The recommended import convention is `import registration1d as reg1d`;
+the short alias is used throughout the documentation and notebooks.
+
+    import registration1d as reg1d
 
     dataset = reg1d.data.Dorn2012()                     # 8 observations of unequal length
     yi      = reg1d.register_linear(dataset.y, n=101).y # (8,101) linearly registered

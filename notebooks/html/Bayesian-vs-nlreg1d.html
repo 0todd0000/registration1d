@@ -7796,7 +7796,7 @@ a.anchor-link {
 <!-- End of mermaid configuration --></head>
 <body class="jp-Notebook" data-jp-theme-light="true" data-jp-theme-name="JupyterLab Light">
 <main>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=20a40534">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=c868fce7">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7816,12 +7816,12 @@ and credible bands for the displacement fields. <code>reg1d.bayes</code> impleme
 (finite cosine basis in the tangent space of the identity warp, pCN Metropolis sampling, Gibbs
 update of the noise variance; see <code>ALGORITHMS.md</code>).</p>
 <p>This notebook reproduces the nlreg1d analysis of the two simulated datasets — <strong>A</strong> (pure
-amplitude effect) and <strong>B</strong> (pure timing effect) — with <code>reg1d</code>, then repeats it with Bayesian
+amplitude effect) and <strong>B</strong> (pure timing effect) — with <code>registration1d</code>, then repeats it with Bayesian
 registration and compares the conclusions.</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=fd89f287">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=43086be7">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7830,11 +7830,11 @@ registration and compares the conclusions.</p>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">sys</span><span class="o">,</span><span class="w"> </span><span class="nn">os</span>
-<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="s1">'..'</span><span class="p">))</span>   <span class="c1"># so that this notebook finds reg1d without installation</span>
+<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="s1">'..'</span><span class="p">))</span>   <span class="c1"># so that this notebook finds registration1d without installation</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">reg1d</span>
-<span class="nb">print</span><span class="p">(</span><span class="s1">'reg1d version:'</span><span class="p">,</span> <span class="n">reg1d</span><span class="o">.</span><span class="n">__version__</span><span class="p">)</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">registration1d</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">reg1d</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">'registration1d version:'</span><span class="p">,</span> <span class="n">reg1d</span><span class="o">.</span><span class="n">__version__</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -7847,13 +7847,13 @@ registration and compares the conclusions.</p>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>reg1d version: 0.0.2
+<pre>registration1d version: 0.0.2
 </pre>
 </div>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=5a3ffed1">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=fc880bf6">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7861,7 +7861,7 @@ registration and compares the conclusions.</p>
 <div class="jp-InputPrompt jp-InputArea-prompt">In [2]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">reg1d</span><span class="w"> </span><span class="kn">import</span> <span class="n">stats</span><span class="p">,</span> <span class="n">bayes</span>
+<div class="highlight hl-ipython3"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">registration1d</span><span class="w"> </span><span class="kn">import</span> <span class="n">stats</span><span class="p">,</span> <span class="n">bayes</span>
 <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
 <span class="n">t</span>      <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">101</span><span class="p">)</span>
 <span class="n">colors</span> <span class="o">=</span> <span class="p">[</span><span class="s1">'0.0'</span><span class="p">,</span> <span class="p">(</span><span class="mf">0.3</span><span class="p">,</span><span class="mf">0.5</span><span class="p">,</span><span class="mf">0.99</span><span class="p">)]</span>
@@ -7904,20 +7904,20 @@ registration and compares the conclusions.</p>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=a654de0c">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=23f65304">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="1.-The-nlreg1d-analysis-with-reg1d-(point-estimate-registration)">1. The nlreg1d analysis with reg1d (point-estimate registration)<a class="anchor-link" href="#1.-The-nlreg1d-analysis-with-reg1d-(point-estimate-registration)">¶</a></h2><p>SRSF registration (5 iterations, as in <code>fig_datasetA.py</code> / <code>fig_datasetB.py</code>), followed by
+<h2 id="1.-The-nlreg1d-analysis-with-registration1d-(point-estimate-registration)">1. The nlreg1d analysis with registration1d (point-estimate registration)<a class="anchor-link" href="#1.-The-nlreg1d-analysis-with-registration1d-(point-estimate-registration)">¶</a></h2><p>SRSF registration (5 iterations, as in <code>fig_datasetA.py</code> / <code>fig_datasetB.py</code>), followed by
 permutation two-sample tests on the registered data (amplitude) and on the displacement fields
 (timing). <code>reg1d.stats.timing_test</code> wraps both tests; the permutation inference uses the maximum
 |t| over the domain (the "tmax" inference of SnPM).</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=eb786165">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=3a25d0ba">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7977,7 +7977,7 @@ permutation two-sample tests on the registered data (amplitude) and on the displ
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=5b82d702">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=35991c56">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7988,7 +7988,7 @@ expected amplitude effect, <strong>but also a spurious timing effect near the st
 The displacement fields show why: away from the bump the simulated curves are flat and noisy, and
 the SRSF (the square root of the derivative) amplifies that noise, so the dynamic programme finds
 large, noise-driven warps in the flat regions where the objective is nearly indifferent. The
-same happens with <code>fdasrsf</code> (whose warps differ from <code>reg1d</code>'s in exactly these regions and
+same happens with <code>fdasrsf</code> (whose warps differ from <code>registration1d</code>'s in exactly these regions and
 which, on the same data, gives a timing-test p-value of about 0.08 with the permutation test
 used here), i.e. the outcome of the timing test in flat regions is decided by algorithmic details
 rather than by the data.</p>
@@ -8000,7 +8000,7 @@ intact:</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=1f2a1d26">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=7b83d8fe">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8056,7 +8056,7 @@ intact:</p>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=072f1bca">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=cfc2cbd4">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8076,7 +8076,7 @@ each observation's timing is.</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=39733ef8">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=27ba8bba">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8123,14 +8123,14 @@ each observation's timing is.</p>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Dataset A: 8 s, mean acceptance rate 0.23
+<pre>Dataset A: 9 s, mean acceptance rate 0.23
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Dataset B: 14 s, mean acceptance rate 0.23
+<pre>Dataset B: 15 s, mean acceptance rate 0.23
 </pre>
 </div>
 </div>
@@ -8143,7 +8143,7 @@ each observation's timing is.</p>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=ea5f39b6">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=38e0fe19">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8165,7 +8165,7 @@ point-estimate analysis is robust to registration uncertainty.</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=c3903529">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=714bab96">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8224,7 +8224,7 @@ point-estimate analysis is robust to registration uncertainty.</p>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=1fb64455">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=34817841">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>

@@ -1,4 +1,4 @@
-# reg1d — summary of findings and suggestions for further development
+# registration1d — summary of findings and suggestions for further development
 
 Date: 2026-09-27. Status: preliminary package (v0.0.2), 44 passing tests,
 seven executed notebooks.
@@ -8,7 +8,7 @@ of the first version (2026-09-27, afternoon and evening).**</span>
 
 ## 1. What was built
 
-A GPL-3.0-or-later Python package `reg1d` that depends only on numpy, scipy
+A GPL-3.0-or-later Python package `registration1d` that depends only on numpy, scipy
 and matplotlib and reproduces the workflow of `nlreg1d/Notebooks/3-Registration.ipynb`
 (linear interpolation to 101 points followed by SRSF registration of the
 Dorn2012 GRF data) **without fdasrsf or scikit-fda installed**. The package
@@ -39,7 +39,7 @@ contains:
 
 Layout:
 
-    reg1d/            package  (all code space-indented)
+    registration1d/            package  (all code space-indented)
       warp.py         warps and warp algebra, smooth_warp
       srsf.py         SRSF transform (uni- and multivariate), dynamic programming (banded, penalised),
                       gradient refinement, Karcher mean / median alignment, parallel option, distances
@@ -82,10 +82,10 @@ with `smooth='spline'`)</span>; (ii) the DP slope set is explicit and user-contr
 <span style="color:#ffd400">**New (2.1a): the elasticity penalty matters for noisy, flat data.** On
 the simulated dataset A (pure amplitude effect; flat, noisy tails) the
 unpenalised SRSF registration produces large, noise-driven warps in the
-flat regions — with reg1d *and* with fdasrsf (the two differ by up to 0.17
+flat regions — with registration1d *and* with fdasrsf (the two differ by up to 0.17
 there, because the objective is nearly indifferent) — and the nlreg1d
 timing test then reports a spurious timing effect near the start of the
-domain (p = 0.002 with reg1d, p = 0.08 with fdasrsf: decided by algorithmic
+domain (p = 0.002 with registration1d, p = 0.08 with fdasrsf: decided by algorithmic
 detail, not by data). With the fdasrsf-style penalty `lam = 100` (its scale
 is that of the squared SRSF distance, which for these data is of order 100)
 both simulated datasets behave exactly as intended: A amplitude-only, B
@@ -204,7 +204,7 @@ routine. numba is BSD-2 licensed (GPL-compatible).</span>
 ### 2.7 Things learned the hard way (worth keeping in mind)
 
 - A registration warp should be reported together with its convention.
-  `reg1d` uses y_registered(t) = y(gamma(t)) throughout (the fdasrsf and
+  `registration1d` uses y_registered(t) = y(gamma(t)) throughout (the fdasrsf and
   nlreg1d convention). The nlreg1d "deviation from linear time" plot is the
   displacement field -(gamma^{-1}(t) - t), not gamma(t) - t; both are
   available.

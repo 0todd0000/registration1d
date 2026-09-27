@@ -1,4 +1,4 @@
-# Test strategy for reg1d
+# Test strategy for registration1d
 
 This document describes the test suite in `tests/` (currently 44 tests,
 `python -m pytest tests`) and the broader suite proposed for the package

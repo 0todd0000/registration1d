@@ -1,4 +1,4 @@
-# Paper ideas for reg1d
+# Paper ideas for registration1d
 
 Notes collected while building the package. Idea 1 is the safe, near-term
 option; ideas 2-4 would each need additional work but have, in my judgement,
@@ -11,7 +11,7 @@ suite of linear and nonlinear registration methods for one-dimensional data
 with a single interface, one result object, warp algebra, uncertainty
 quantification (Bayesian registration) and multivariate support.
 
-**What JOSS looks for and how reg1d meets it.**
+**What JOSS looks for and how registration1d meets it.**
 
 - *Statement of need*: existing tools are either heavy (fdasrsf: Cython/numba/cffi compile chain; scikit-fda: large dependency tree, wraps fdasrsf for elastic registration), single-method (dtw-python, dtaidistance) or R-only (fdasrvf, fda). Biomechanics users typically need to try several methods on the same data and to feed warps into hypothesis tests; nothing offers that in a light package.
 - *Functionality*: 10 methods (linear, shift, affine, SRSF, DTW / derivative DTW / DBA, landmark, continuous, self-modelling, pairwise synchronisation, Bayesian), all from the mathematics, with reference-implementation agreement for SRSF (fdasrsf) and DTW (dtw-python).
@@ -64,7 +64,7 @@ physical structure of force / kinematic curves (smooth derivatives,
 diffeomorphic warps, amplitude invariance) and which distort downstream
 statistics?
 
-**Content.** All reg1d methods, on the same data and with the same warp
+**Content.** All registration1d methods, on the same data and with the same warp
 convention and centering, evaluated on (a) recovery of known warps in
 simulation (with realistic warps and amplitude variation), (b) smoothness of
 the registered derivatives (the DTW problem raised in this session), (c) the
@@ -102,6 +102,6 @@ the psi-smoothing construction being used to regularise DTW paths.
 
 The Dorn2012 data (reduced and three-component) are already bundled;
 simulated datasets A/B are bundled; every figure can be produced by a
-notebook. For any of the papers, a frozen `reg1d` release with a Zenodo DOI
+notebook. For any of the papers, a frozen `registration1d` release with a Zenodo DOI
 and the notebooks as supplementary material would make the paper fully
-reproducible from `pip install reg1d`.
+reproducible from `pip install registration1d`.
