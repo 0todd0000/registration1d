@@ -1,0 +1,13 @@
+# runtime dependencies of reg1d (all BSD-licensed, GPLv3-compatible)
+numpy>=1.22
+scipy>=1.8
+matplotlib>=3.5
+
+# needed only to run / re-render the notebooks
+jupyter
+nbformat
+nbconvert
+ipykernel
+
+# needed only to run the test suite
+pytest
