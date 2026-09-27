@@ -2,7 +2,7 @@
 Figures for the JOSS paper.  Run from this folder:  python make_figures.py
 '''
 import os, sys
-sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 import numpy as np
 from matplotlib import pyplot as plt
 import registration1d as reg1d

@@ -10,7 +10,10 @@ registration package needs to be installed.
 ## Installation (development)
 
     pip install -r requirements.txt
-    pip install -e .        # or add the repository folder to sys.path
+    pip install -e .        # editable install from this repository (src layout)
+
+Optional extras: `pip install -e .[qt]` adds the PyQtGraph plotting backend
+(`registration1d.plotqt`), `pip install -e .[dev]` adds the test and notebook tools.
 
 ## Quick start
 
@@ -56,8 +59,10 @@ and the RealTimeRegistration notebook).
 and displacement fields (the nlreg1d timing analysis).
 
 See `ALGORITHMS.md` for the provenance of each algorithm, `GPL-COMPLIANCE.md`
-for the licensing status of all third-party code, and the notebooks in
-`notebooks/` (HTML renderings in `notebooks/html/`) for demonstrations.
+for the licensing status of all third-party code, `SUMMARY.md` for development
+notes, `TESTS.md` for the test strategy, and the notebooks in `notebooks/`
+(HTML renderings in `notebooks/html/`) for demonstrations. The package
+source is in `src/registration1d/`; the draft software paper is in `paper/`.
 
 ## Tests
 

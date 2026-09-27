@@ -21,8 +21,20 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 
+[project.optional-dependencies]
+qt = ["pyqtgraph>=0.13"]
+dev = ["pytest", "jupyter", "nbformat", "nbconvert", "ipykernel"]
+
+[project.urls]
+Homepage = "https://github.com/0todd0000/registration1d"
+Source = "https://github.com/0todd0000/registration1d"
+Issues = "https://github.com/0todd0000/registration1d/issues"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
 [tool.setuptools.packages.find]
-include = ["registration1d*"]
+where = ["src"]
 
 [tool.setuptools.package-data]
 registration1d = ["data/*.npz", "data/*.csv"]

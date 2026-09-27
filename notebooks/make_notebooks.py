@@ -22,7 +22,7 @@ def code(s):
 
 SETUP = '''
 import sys, os
-sys.path.insert(0, os.path.abspath('..'))   # so that this notebook finds registration1d without installation
+sys.path.insert(0, os.path.abspath('../src'))   # so that this notebook finds registration1d without installation
 import numpy as np
 from matplotlib import pyplot as plt
 import registration1d as reg1d
@@ -1261,6 +1261,127 @@ md("""
 ]
 
 
+# ---------------------------------------------------------------------------
+# notebook: PyQtGraph backend
+# ---------------------------------------------------------------------------
+
+nb_qt = [
+md("""
+# PyQtGraph backend
+
+`registration1d.plot` draws with Matplotlib. For use inside a Qt application (PyQt6 / PySide6),
+`registration1d.plotqt` provides the same helpers on top of [PyQtGraph](https://www.pyqtgraph.org)
+(MIT licence), which renders through Qt's scene graph and stays interactive — pan, zoom, hover —
+with thousands of curves. It is an optional dependency:
+
+    pip install "registration1d[qt]" PyQt6      # or PySide6
+
+The functions mirror the Matplotlib ones (`plot_curves`, `plot_warps`, `plot_displacement_fields`,
+`plot_registration`) and `RegistrationResult.plot(backend='pyqtgraph')` is a shortcut. Two design
+points matter for embedding:
+
+- every function accepts an existing PyQtGraph `PlotItem` / `PlotWidget` through the `plot=`
+  argument (or a `GraphicsLayoutWidget` through `win=`) and draws into it, so an application keeps
+  ownership of its widgets; with no target a stand-alone widget is created and returned;
+- nothing starts a Qt event loop. Call `plotqt.app().exec()` for a stand-alone window, or let the
+  host application run its loop.
+
+This notebook runs *off-screen* (no display is needed) and shows the PyQtGraph output as PNG images
+rendered with `plotqt.to_image`, next to the corresponding Matplotlib figures for comparison.
+"""),
+code("""
+import os
+os.environ['QT_QPA_PLATFORM'] = 'offscreen'      # render without a display (must precede the Qt import)
+""" + SETUP.strip('\n') + """
+from registration1d import plotqt
+from IPython.display import Image, display
+import pyqtgraph as pg
+print('pyqtgraph', pg.__version__, '| Qt binding:', pg.Qt.QT_LIB)
+"""),
+code("""
+dataset = reg1d.data.Dorn2012()
+speed   = dataset.group
+yi      = reg1d.register_linear(dataset.y, n=101).y
+colors  = ['k','b','g','r']
+labels  = [f'Speed = {i}' for i in range(4)]
+result  = reg1d.register_srsf(yi, max_iter=5)
+"""),
+md("""
+### 1. Three-panel registration summary — PyQtGraph versus Matplotlib
+"""),
+code("""
+win = result.plot(group=speed, colors=colors, backend='pyqtgraph')      # GraphicsLayoutWidget, 3 PlotItems
+plotqt.to_image(win, 'pg_registration.png', size=(1200, 360))
+display(Image('pg_registration.png'))
+
+fig, AX = result.plot(group=speed, colors=colors)                        # Matplotlib, for comparison
+plt.show()
+"""),
+md("""
+### 2. Individual panels, and drawing into caller-owned widgets
+
+An application typically creates its own layout and hands the plot items to `plotqt`. Below a
+2 × 2 `GraphicsLayoutWidget` is filled with raw observations (different lengths), registered
+observations, warps and displacement fields; the return value of each call is the item passed in.
+"""),
+code("""
+glw = pg.GraphicsLayoutWidget(title='registration1d')
+p_raw  = glw.addPlot(title='raw observations (frames)')
+p_reg  = glw.addPlot(title='SRSF-registered')
+glw.nextRow()
+p_warp = glw.addPlot(title='warps')
+p_disp = glw.addPlot(title='displacement fields')
+
+plotqt.plot_curves(list(dataset.y), group=speed, plot=p_raw, colors=colors, labels=labels, xlabel='Frame', ylabel='GRF (N)')
+plotqt.plot_curves(result.y, group=speed, plot=p_reg, colors=colors, x='percent', legend=False, xlabel='Time (%)')
+plotqt.plot_warps(result.warps.asarray(), group=speed, plot=p_warp, colors=colors, legend=False)
+plotqt.plot_displacement_fields(result.warps.asarray(), group=speed, plot=p_disp, colors=colors, legend=False)
+plotqt.to_image(glw, 'pg_panels.png', size=(1000, 650))
+display(Image('pg_panels.png'))
+"""),
+code("""
+fig, AX = plt.subplots(2, 2, figsize=(11, 7))
+reg1d.plot.plot_curves(list(dataset.y), group=speed, ax=AX[0,0], colors=colors, labels=labels); AX[0,0].set_title('raw observations (frames)')
+reg1d.plot.plot_curves(result.y, group=speed, ax=AX[0,1], colors=colors, x='percent', legend=False); AX[0,1].set_title('SRSF-registered')
+reg1d.plot.plot_warps(result.warps.asarray(), group=speed, ax=AX[1,0], colors=colors, legend=False); AX[1,0].set_title('warps')
+reg1d.plot.plot_displacement_fields(result.warps.asarray(), group=speed, ax=AX[1,1], colors=colors, legend=False); AX[1,1].set_title('displacement fields')
+plt.tight_layout(); plt.show()
+"""),
+md("""
+### 3. Themes
+
+Stand-alone widgets use a white background with black foreground (`plotqt.set_theme('light')`,
+applied automatically) so that the default Matplotlib colours (black for the first group) remain
+visible. `set_theme('dark')` gives PyQtGraph's native look; `set_theme('app')` leaves PyQtGraph's
+global options untouched for applications that manage their own theme.
+"""),
+code("""
+plotqt.set_theme('dark')
+win_dark = plotqt.plot_registration(result, group=speed, colors=['w','b','g','r'])
+plotqt.to_image(win_dark, 'pg_dark.png', size=(1200, 360))
+display(Image('pg_dark.png'))
+plotqt.set_theme('light')
+"""),
+md("""
+### 4. Interactive use
+
+In a script or application the same objects are shown as live windows:
+
+    win = result.plot(group=speed, backend='pyqtgraph')
+    win.show()
+    plotqt.app().exec()
+
+The linked axes of the *Before* / *After* panels pan and zoom together, and PyQtGraph's context
+menu (right click) offers export to PNG / SVG / CSV, which is the route to publication figures
+from within an application.
+"""),
+code("""
+for f in ('pg_registration.png', 'pg_panels.png', 'pg_dark.png'):
+    os.remove(f)                       # the images are embedded in the notebook outputs
+"""),
+]
+
+
 def build(cells, name):
     nb = nbf.v4.new_notebook()
     nb['cells'] = cells
@@ -1284,6 +1405,7 @@ ALL = {
     'WarpCentering'       : nb_center,
     'Bayesian-vs-nlreg1d' : nb_bayes,
     'RealTimeRegistration': nb_rt,
+    'PyQtGraph-backend'   : nb_qt,
 }
 
 
