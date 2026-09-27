@@ -345,3 +345,37 @@ def test_stats_permutation():
     for lo, hi in res['clusters']:
         covered[lo:hi+1] = True
     assert covered[45:56].mean() > 0.8 and covered[:30].mean() < 0.2
+
+
+# ------------------------------------------------------------------ real-time registration
+
+def test_realtime_srsf_dorn():
+    d  = reg1d.data.Dorn2012()
+    r  = reg1d.register_srsf(list(d.y), t='fs=1000', max_iter=3)
+    assert r.info['realtime'] and r.y.shape == (8, 101)
+    assert np.allclose(r.info['warps_realtime'][:, -1], r.info['durations'])
+    assert np.all(warp.is_valid_warp(r.warps.asarray()))
+    assert np.argmax(r.y, axis=1).std() < np.argmax(r.y0, axis=1).std()
+    z  = r.apply(list(d.y))                       # same warps applied to a ragged variable
+    assert np.allclose(z, r.y)
+    rn = reg1d.register_srsf(reg1d.register_linear(d.y).y, max_iter=3)
+    assert np.abs(r.warps.asarray() - rn.warps.asarray()).max() < 0.1     # similar, not identical
+
+
+def test_realtime_pair_recovers_time_scaling():
+    # the same physical event sampled with two different durations should align exactly
+    t1 = np.linspace(0, 1, 201); t2 = np.linspace(0, 1, 101)
+    f  = lambda s: np.exp(-((s-0.4)/0.1)**2)
+    q1 = srsf.srsf(f(t1)) / np.sqrt(1.0); q2 = srsf.srsf(f(t2)) / np.sqrt(1.0)
+    jidx = srsf.align_srsf_pair(q1, q2, dt1=t1[1]-t1[0], dt2=t2[1]-t2[0], return_index=True)
+    assert np.abs(jidx / 100 - t1).max() < 0.02
+
+
+def test_realtime_dtw_and_landmark():
+    d  = reg1d.data.Dorn2012()
+    r  = reg1d.register_dtw(list(d.y), t=0.001, derivative=True, smooth=0.03, max_iter=2)
+    assert r.y.shape == (8, 101) and np.all(warp.is_valid_warp(r.warps.asarray()))
+    r  = reg1d.register_landmark(list(d.y), t=0.001, kinds=('zero', 'max'))
+    assert r.y.shape == (8, 101) and np.argmax(r.y, axis=1).std() <= 1.0
+    with pytest.raises(RuntimeError):
+        reg1d.register_dtw(list(d.y), t=0.001, step_pattern='strict', max_iter=1)

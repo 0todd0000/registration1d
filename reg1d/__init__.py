@@ -49,6 +49,7 @@ from . import bayes
 from . import pairwise
 from . import sim
 from . import stats
+from . import realtime
 from . import reg
 from . import data
 from . import plot

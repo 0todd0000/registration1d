@@ -42,6 +42,10 @@ registration package needs to be installed.
 
 All functions return a `RegistrationResult` (`islinear` tells linear from
 nonlinear); multivariate (J,Q,D) input is supported by `register_srsf`.
+Observations of different lengths can be registered in **real time**
+without prior resampling by passing them as a list with their sampling
+interval, e.g. `register_srsf(ylist, t='fs=1000')` (see `reg1d.realtime`
+and the RealTimeRegistration notebook).
 `reg1d.stats` provides permutation-based two-sample tests on registered data
 and displacement fields (the nlreg1d timing analysis).
 

@@ -39,6 +39,7 @@ from . import continuous as _continuous
 from . import bayes as _bayes
 from . import pairwise as _pairwise
 from . import sim as _sim
+from . import realtime as _realtime
 
 
 
@@ -75,6 +76,18 @@ def _prepare_grid(y, t):
     else:
         yu = np.array([np.interp(tu, t, yy)  for yy in y])
     return yu, tu, t
+
+
+
+def _realtime_result(r, method, extra_keys):
+    '''Wrap a reg1d.realtime output dictionary in a NonlinearRegistrationResult.'''
+    tau  = r['t']
+    info = dict(realtime=True, durations=r['durations'], lengths=r['lengths'],
+                warps_realtime=r['warps_realtime'], displacement_realtime=r['displacement_realtime'])
+    for k in extra_keys:
+        info[k] = r[k]
+    return NonlinearRegistrationResult(r['y'], r['y0'], r['warps'], r['template'], method, info,
+        t=tau, t_original=tau)
 
 
 
@@ -177,6 +190,17 @@ class RegistrationResult(object):
         ((J,Q) array, or (J,Q,D) for multivariate data) sampled on the same
         time grid as the registered data:  z_registered[i] = z[i]( warps[i] ).
         '''
+        if self.info.get('realtime', False) and _realtime.is_ragged(z):
+            # real-time result: z_i sampled on observation i's own grid (same length as y_i)
+            G = self.info['warps_realtime']
+            out = []
+            for i, zz in enumerate(z):
+                zz = np.asarray(zz, dtype=float)
+                if zz.shape[0] != self.info['lengths'][i]:
+                    raise ValueError(f'observation {i}: expected {self.info["lengths"][i]} points, got {zz.shape[0]}')
+                tt = np.linspace(0, self.info['durations'][i], zz.shape[0])
+                out.append(_realtime._eval_on_reference(zz, tt, G[i]))
+            return np.array(out)
         z = np.asarray(z, dtype=float)
         if z.ndim == 3:
             return np.stack([self.apply(z[:, :, k])  for k in range(z.shape[2])], axis=2)
@@ -301,7 +325,8 @@ def register_affine(y, t=None, **kwargs):
 # ---------------------------------------------------------------------
 
 def register_srsf(y, t=None, template='karcher', method='mean', max_iter=20, tol=1e-3, center=True,
-    max_step=6, nsub=4, lam=0.0, band=None, smooth=0, refine=False, parallel=False, verbose=False):
+    max_step=6, nsub=4, lam=0.0, band=None, smooth=0, refine=False, parallel=False, verbose=False,
+    n_ref=101, T_ref=None):
     '''
     Elastic (SRSF / Fisher-Rao) registration by dynamic programming with
     an iteratively updated Karcher-mean (or median) template.
@@ -321,7 +346,20 @@ def register_srsf(y, t=None, template='karcher', method='mean', max_iter=20, tol
                   (smoothing-spline derivative) for the SRSF computation
     *refine*    : gradient-based refinement of each dynamic-programming warp
     *parallel*  : align observations in parallel processes (bool or number of workers)
+
+    Real-time registration: if *y* is a sequence of observations of different
+    lengths (a list, or an object array), the observations are NOT resampled;
+    each is aligned on its own time grid (given by *t*: None = frames, a
+    scalar sampling interval, 'fs=<Hz>', or one time vector per observation)
+    to a template on a reference axis of *n_ref* points over [0, *T_ref*]
+    (default: the mean duration). See reg1d.realtime. The result's
+    info['warps_realtime'] and info['displacement_realtime'] are in time units.
     '''
+    if _realtime.is_ragged(y):
+        r = _realtime.align_group_srsf(y, t=t, n_ref=n_ref, T_ref=T_ref, template=template, method=method,
+            max_iter=max_iter, tol=tol, center=center, max_step=max_step, nsub=nsub, lam=lam, band=band,
+            smooth=smooth, verbose=verbose)
+        return _realtime_result(r, 'srsf', ('q', 'niter', 'cost'))
     yu, tu, t0 = _prepare_grid(y, t)
     r = _srsf.align_group(yu, template=template, method=method, max_iter=max_iter, tol=tol,
         center=center, max_step=max_step, nsub=nsub, lam=lam, band=band, smooth=smooth,
@@ -331,7 +369,7 @@ def register_srsf(y, t=None, template='karcher', method='mean', max_iter=20, tol
 
 
 def register_dtw(y, t=None, template='mean', max_iter=10, step_pattern='symmetric2', window=None,
-    p=2, derivative=False, smooth=0.0, verbose=False):
+    p=2, derivative=False, smooth=0.0, verbose=False, n_ref=101, T_ref=None):
     '''
     Dynamic time warping registration with an iteratively refined template
     (DTW barycentre averaging).
@@ -346,6 +384,10 @@ def register_dtw(y, t=None, template='mean', max_iter=10, step_pattern='symmetri
                      to sqrt(gamma') of each DTW warp, which turns the piecewise
                      path into a smooth, strictly increasing warp
     '''
+    if _realtime.is_ragged(y):
+        r = _realtime.align_group_dtw(y, t=t, n_ref=n_ref, T_ref=T_ref, template=template, max_iter=max_iter,
+            step_pattern=step_pattern, window=window, p=p, derivative=derivative, smooth=smooth, verbose=verbose)
+        return _realtime_result(r, 'dtw', ('distance', 'niter'))
     yu, tu, t0 = _prepare_grid(y, t)
     r = _dtw.align_group(yu, template=template, max_iter=max_iter, step_pattern=step_pattern,
         window=window, p=p, derivative=derivative, smooth=smooth, verbose=verbose)
@@ -353,7 +395,8 @@ def register_dtw(y, t=None, template='mean', max_iter=10, step_pattern='symmetri
         dict(niter=r['niter'], distance=r['distance']), t=tu, t_original=t0)
 
 
-def register_landmark(y, t=None, landmarks=None, targets='mean', kind='pchip', kinds=('min', 'zero', 'max')):
+def register_landmark(y, t=None, landmarks=None, targets='mean', kind='pchip', kinds=('min', 'zero', 'max'),
+    n_ref=101, T_ref=None):
     '''
     Landmark registration.
 
@@ -362,7 +405,14 @@ def register_landmark(y, t=None, landmarks=None, targets='mean', kind='pchip', k
                   detection of the landmark kinds in *kinds*
     *targets*   : 'mean' | 'median' | (K,) array
     *kind*      : warp interpolation between landmarks: 'pchip' | 'linear'
+
+    Ragged input (observations of different lengths) triggers real-time
+    registration, with landmarks in the time units of *t*; see reg1d.realtime.
     '''
+    if _realtime.is_ragged(y):
+        r = _realtime.align_group_landmark(y, t=t, n_ref=n_ref, T_ref=T_ref, landmarks=landmarks,
+            targets=targets, kind=kind, kinds=kinds)
+        return _realtime_result(r, 'landmark', ('landmarks', 'targets'))
     yu, tu, t0 = _prepare_grid(y, t)
     if landmarks is not None and t is not None:
         landmarks = (np.asarray(landmarks, dtype=float) - tu[0]) / (tu[-1] - tu[0])

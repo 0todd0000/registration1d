@@ -162,38 +162,43 @@ def _interp_q(X, idx, q):
     return np.stack([np.interp(X, idx, q[:, k])  for k in range(q.shape[1])], axis=-1)
 
 
-def _segment_costs(q1, q2, di, dj, t, nsub=4):
+def _segment_costs(q1, q2, di, dj, dt1=None, dt2=None, nsub=4):
     """
     Cost E[i,j] of the linear path segment from node (i,j) to (i+di, j+dj),
     for every start node, vectorised over the whole grid:
 
-        E[i,j] = int_{t_i}^{t_{i+di}}  || q1(t) - sqrt(s) q2( t_j + s (t - t_i) ) ||^2 dt,   s = dj/di
+        E[i,j] = int_{t_i}^{t_{i+di}}  || q1(t) - sqrt(s) q2( t_j + s (t - t_i) ) ||^2 dt
 
-    q1 and q2 ((Q,) or (Q,D)) are sampled by linear interpolation at nsub
-    points per grid step and the integral is approximated by the
-    trapezoidal rule.
+    with s the slope in TIME units, s = (dj dt2) / (di dt1). q1 (Q1 points,
+    spacing dt1) and q2 (Q2 points, spacing dt2) may have different sizes and
+    spacings; they are sampled by linear interpolation at nsub points per
+    grid step of q1 and the integral is approximated by the trapezoidal rule.
+    Defaults: dt1 = 1/(Q1-1), dt2 = 1/(Q2-1) (both on the unit interval).
     """
-    Q     = t.size
-    s     = dj / di
-    n1    = Q - di               # number of admissible start rows
-    n2    = Q - dj               # number of admissible start columns
+    Q1, Q2 = q1.shape[0], q2.shape[0]
+    dt1   = 1.0/(Q1-1) if dt1 is None else dt1
+    dt2   = 1.0/(Q2-1) if dt2 is None else dt2
+    s_idx = dj / di                                 # slope in index units
+    s     = s_idx * dt2 / dt1                       # slope in time units
+    n1    = Q1 - di              # number of admissible start rows
+    n2    = Q2 - dj              # number of admissible start columns
     if n1 <= 0 or n2 <= 0:
         return None
     m     = di * nsub + 1
-    u     = np.linspace(0, di, m)                   # offset along t (grid units)
-    dt    = (t[1] - t[0]) * (u[1] - u[0])
+    u     = np.linspace(0, di, m)                   # offset along t (grid units of q1)
+    dt    = dt1 * (u[1] - u[0])
     I     = np.arange(n1)[:, None] + u[None, :]     # (n1, m) fractional row indices
-    Jx    = np.arange(n2)[:, None] + s*u[None, :]   # (n2, m) fractional column indices
-    idx   = np.arange(Q)
-    Q1    = _interp_q(I, idx, q1)                   # (n1, m[, D])
-    Q2    = _interp_q(Jx, idx, q2) * np.sqrt(s)     # (n2, m[, D])
-    D     = Q1[:, None, ...] - Q2[None, :, ...]     # (n1, n2, m[, D])
+    Jx    = np.arange(n2)[:, None] + s_idx*u[None, :]   # (n2, m) fractional column indices
+    Q1i   = _interp_q(I, np.arange(Q1), q1)         # (n1, m[, D])
+    Q2i   = _interp_q(Jx, np.arange(Q2), q2) * np.sqrt(s)   # (n2, m[, D])
+    D     = Q1i[:, None, ...] - Q2i[None, :, ...]   # (n1, n2, m[, D])
     D2    = D**2 if q1.ndim == 1 else (D**2).sum(axis=-1)
     E     = dt * (D2[..., 1:] + D2[..., :-1]).sum(axis=-1) / 2.0
     return E
 
 
-def align_srsf_pair(q1, q2, max_step=6, nsub=4, lam=0.0, band=None):
+def align_srsf_pair(q1, q2, max_step=6, nsub=4, lam=0.0, band=None, dt1=None, dt2=None,
+    return_index=False):
     """
     Optimal warp aligning SRSF q2 to SRSF q1 by dynamic programming:
 
@@ -202,42 +207,47 @@ def align_srsf_pair(q1, q2, max_step=6, nsub=4, lam=0.0, band=None):
     where R penalises departure from the identity (int (sqrt(gamma') - 1)^2 dt,
     as used in the fdasrsf "lam" argument).
 
-    *q1*, *q2*  : (Q,) univariate SRSFs, or (Q,D) vector SRSFs
+    *q1*, *q2*  : (Q1,) and (Q2,) univariate SRSFs, or (Q1,D) and (Q2,D) vector
+                  SRSFs. Q1 and Q2 may differ (e.g. observations of different
+                  lengths in real time), in which case *dt1*, *dt2* give the
+                  sampling intervals (default: both grids span the unit interval)
     *max_step*  : the admissible path slopes are all coprime (di,dj) pairs with
-                  1 <= di, dj <= max_step (6 -> local slopes 1/6 ... 6); the path
-                  is strictly increasing so the warp is a valid diffeomorphism
+                  1 <= di, dj <= max_step (6 -> local index slopes 1/6 ... 6); the
+                  path is strictly increasing so the warp is a valid diffeomorphism
     *nsub*      : sub-samples per grid step in the segment-cost integrals
     *band*      : Sakoe-Chiba band: |gamma(t) - t| <= band (normalised time);
                   None = unconstrained
+    *return_index* : if True return the path as fractional q2-indices for each
+                  q1 index (Q1,), instead of the normalised warp
 
-    Returns the warp gamma sampled on the uniform grid (Q,).
+    Returns the warp gamma on the grid of q1, normalised to [0,1] (Q1,).
     """
     q1    = np.asarray(q1, dtype=float)
     q2    = np.asarray(q2, dtype=float)
-    Q     = q1.shape[0]
-    t     = _warp.grid(Q)
+    Q1, Q2 = q1.shape[0], q2.shape[0]
+    dt1   = 1.0/(Q1-1) if dt1 is None else dt1
+    dt2   = 1.0/(Q2-1) if dt2 is None else dt2
     steps = _slope_set(max_step)
     E     = {}
     for (di, dj) in steps:
-        e   = _segment_costs(q1, q2, di, dj, t, nsub=nsub)
+        e   = _segment_costs(q1, q2, di, dj, dt1, dt2, nsub=nsub)
         if e is not None and lam > 0:
-            s   = dj / di
-            e   = e + lam * (np.sqrt(s) - 1)**2 * di * (t[1]-t[0])
+            s   = (dj / di) * dt2 / dt1
+            e   = e + lam * (np.sqrt(s) - 1)**2 * di * dt1
         E[(di, dj)] = e
     INF   = np.inf
-    D     = np.full((Q, Q), INF)
-    P     = np.full((Q, Q, 2), -1, dtype=int)     # predecessor node
+    D     = np.full((Q1, Q2), INF)
+    P     = np.full((Q1, Q2, 2), -1, dtype=int)    # predecessor node
     D[0, 0] = 0.0
     if band is not None:
-        jj    = np.arange(Q)
-        bw    = int(np.ceil(band * (Q - 1)))
-    for i in range(1, Q):
+        jj    = np.arange(Q2) / (Q2 - 1)
+    for i in range(1, Q1):
         for (di, dj) in steps:
             e   = E[(di, dj)]
             i0  = i - di
             if i0 < 0 or e is None:
                 continue
-            jmax   = Q - dj                      # start columns 0..jmax-1  ->  end columns dj..Q-1
+            jmax   = Q2 - dj                     # start columns 0..jmax-1  ->  end columns dj..Q2-1
             cand   = D[i0, :jmax] + e[i0, :]
             cur    = D[i, dj:]
             better = cand < cur
@@ -245,11 +255,11 @@ def align_srsf_pair(q1, q2, max_step=6, nsub=4, lam=0.0, band=None):
                 D[i, dj:][better]    = cand[better]
                 P[i, dj:][better, 0] = i0
                 P[i, dj:][better, 1] = np.arange(jmax)[better]
-        if band is not None:                     # forbid nodes outside the band
-            out = np.abs(jj - i) > bw
+        if band is not None:                     # forbid nodes outside the band (normalised time)
+            out = np.abs(jj - i / (Q1 - 1)) > band + 1e-12
             D[i, out] = INF
-    # backtrack from (Q-1, Q-1)
-    i, j  = Q-1, Q-1
+    # backtrack from (Q1-1, Q2-1)
+    i, j  = Q1-1, Q2-1
     if not np.isfinite(D[i, j]):
         raise RuntimeError('dynamic programming failed to reach the end node; increase max_step or band')
     path  = [(i, j)]
@@ -257,8 +267,10 @@ def align_srsf_pair(q1, q2, max_step=6, nsub=4, lam=0.0, band=None):
         i, j = P[i, j]
         path.append((i, j))
     path  = np.array(path[::-1], dtype=float)
-    gam   = np.interp(np.arange(Q), path[:, 0], path[:, 1]) / (Q - 1)
-    return _warp.normalize_warp(gam)
+    jidx  = np.interp(np.arange(Q1), path[:, 0], path[:, 1])
+    if return_index:
+        return jidx
+    return _warp.normalize_warp(jidx / (Q2 - 1))
 
 
 def refine_warp(q1, q2, gam, n_basis=6, lam=0.0):
