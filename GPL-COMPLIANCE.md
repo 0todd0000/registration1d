@@ -1,0 +1,73 @@
+# GPL compliance status of third-party code
+
+`reg1d` is to be released under the GNU General Public License v3.0 or later
+(GPL-3.0-or-later; the full text is in `LICENSE`). This document records the
+licensing status of every third-party package that `reg1d` imports, every
+package whose code was consulted, and every package that was *not* used and
+why. Compatibility judgements follow the Free Software Foundation's list of
+GPL-compatible licenses (https://www.gnu.org/licenses/license-list.html).
+License data were checked on 2026-09-27 against the packages' PyPI metadata
+and, where noted, their source distributions.
+
+## 1. Packages imported by reg1d (runtime dependencies)
+
+| package | version checked | license | GPLv3-compatible | notes |
+|---|---|---|---|---|
+| numpy | 2.5 | BSD-3-Clause (with 0BSD / MIT / Zlib / CC0 components) | yes | permissive |
+| scipy | 1.18 | BSD-3-Clause | yes | permissive; `interpolate`, `integrate`, `optimize`, `signal` are used |
+| matplotlib | 3.11 | Matplotlib license (PSF-based) | yes | permissive; used only by `reg1d.plot` and the `plot` methods |
+
+No other package is imported by `reg1d` at runtime. In particular `fdasrsf`,
+`scikit-fda`, `dtw-python`, `dtaidistance`, `numba`, `Cython`, `cffi`,
+`pandas` and `scikit-learn` are **not** imported and do not need to be
+installed.
+
+Because all three runtime dependencies are permissively licensed, releasing
+`reg1d` under GPL-3.0-or-later imposes no additional obligation beyond those
+of the GPL itself (retain the license text, mark modified files, provide
+source).
+
+## 2. Development-only dependencies (not imported by reg1d)
+
+| package | license | GPLv3-compatible | use |
+|---|---|---|---|
+| pytest | MIT | yes | running `tests/` |
+| jupyter / nbformat / nbconvert / ipykernel | BSD-3-Clause | yes | building the notebooks |
+
+## 3. Third-party registration packages: consulted, not copied
+
+`reg1d` was written from the published mathematics (see `ALGORITHMS.md`). No
+source code from the packages below was copied into `reg1d`, and none of
+them is imported. They were used as follows.
+
+| package | license | GPLv3-compatible | how it was used |
+|---|---|---|---|
+| fdasrsf (`fdasrsf_python`, J.D. Tucker) | BSD-3-Clause | yes | **validation only**: `reg1d.register_srsf` was run side by side with `fdasrsf.fdawarp.srsf_align` on the Dorn2012 data and on simulated data (notebook 1, optional cell). The maximum absolute difference between the warps of the two implementations is about 0.01 (one observation: 0.06) on the unit interval, with identical alignment of the propulsive peak. The public API of `srsf_align` (keyword names `MaxItr`, `center`, `lam`, `smoothdata`) informed the naming of `register_srsf`'s keyword arguments. |
+| dtw-python (T. Giorgino) | GPL-3.0-or-later (source distribution `COPYING`, `pyproject.toml`) | yes (same license) | **validation only**: `reg1d.dtw.dtw_path` reproduces `dtw.dtw` exactly (identical path and identical accumulated distance) for the `symmetric1`, `symmetric2` and `asymmetric` step patterns and for the Sakoe-Chiba window. Step-pattern names follow Giorgino (2009). Note that although this package *could* be imported by a GPL project, it is not, because the algorithm is short and a dependency-free implementation was preferred. |
+| scikit-fda (GAA-UAM) | BSD-3-Clause | yes | not installed and not used. Its `ElasticRegistration` is itself a wrapper around `fdasrsf`; its `LeastSquaresShiftRegistration` and `landmark_elastic_registration` correspond to `reg1d.register_shift` and `reg1d.register_landmark`, which were implemented from Ramsay & Silverman (2005) instead. scikit-fda's own dependency tree (fdasrsf BSD, dcor MIT, findiff MIT, rdata MIT, scikit-datasets MIT, multimethod Apache-2.0, lazy-loader BSD, pandas BSD, scikit-learn BSD) is entirely GPL-compatible, so it could be added as an optional dependency later if desired. |
+| dtaidistance (KU Leuven DTAI) | Apache-2.0 | yes (Apache-2.0 is compatible with GPLv3, not GPLv2) | not used; noted as an alternative fast DTW implementation for future work. |
+| nlreg1d (T. Pataky) | MIT | yes | the reference for the target workflow. Its `Warp1D` / `Warp1DList` interface and `register_linear` / `register_srsf` names are mirrored in `reg1d` for continuity, but the implementations in `reg1d.warp` are new (nlreg1d's `random_warp` wrapped scikit-fda and its displacement fields wrapped scipy interpolation; `reg1d` computes both directly). |
+
+If, in the future, `fdasrsf` or `dtw-python` code were to be copied into
+`reg1d` rather than re-derived, both licenses would permit it: BSD-3-Clause
+code may be included in a GPL work provided the BSD copyright notice and
+disclaimer are retained, and GPL-3.0-or-later code may be included as is.
+
+## 4. Data
+
+`reg1d/data/Dorn2012-reduced.npz` is a copy of `Data/Dorn2021-reduced.npz`
+from the nlreg1d repository (MIT), a reduced subset of the ground reaction
+force data of Dorn, Schache & Pandy (2012), *J Exp Biol* 215:1944-1956.
+It is included for demonstration and testing. Its inclusion under the GPL is
+permitted by the MIT license; the source is credited in `reg1d/data.py`.
+
+## 5. Summary
+
+- Every module in `reg1d` carries a GPL-3.0-or-later header and the full
+  license text is distributed in `LICENSE`.
+- All runtime dependencies (numpy, scipy, matplotlib) are permissively
+  licensed and GPL-compatible.
+- No third-party registration code is imported or copied; `fdasrsf` and
+  `dtw-python` were used only to verify numerical agreement.
+- Nothing in the package or its dependencies prevents release under
+  GPL-3.0-or-later.
