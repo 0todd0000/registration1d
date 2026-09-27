@@ -1,10 +1,10 @@
 # reg1d — summary of findings and suggestions for further development
 
-Date: 2026-09-27. Status: preliminary package (v0.0.2), 37 passing tests,
+Date: 2026-09-27. Status: preliminary package (v0.0.2), 44 passing tests,
 seven executed notebooks.
 
-<span style="color:#ffd400">**Highlighted text (yellow) marks additions and changes made in the second
-session (2026-09-27, afternoon), after the review of the first version.**</span>
+<span style="color:#ffd400">**Highlighted text (yellow) marks additions and changes made after the review
+of the first version (2026-09-27, afternoon and evening).**</span>
 
 ## 1. What was built
 
@@ -56,7 +56,8 @@ Layout:
       data.py, plot.py, data/*.npz, data/*.csv
     notebooks/        1-Registration, 2-Methods, 3-Warps, 4-Multivariate, WarpCenteringIssue,
                       Bayesian-vs-nlreg1d, RealTimeRegistration (+ html/, make_notebooks.py)
-    tests/            pytest suite (37 tests)
+                      (WarpCentering replaces the earlier WarpCenteringIssue)
+    tests/            pytest suite (44 tests)
     TESTS.md          test strategy;  PAPER-IDEAS.md  publication ideas
 
 ## 2. Key findings
@@ -220,8 +221,8 @@ routine. numba is BSD-2 licensed (GPL-compatible).</span>
   between them across observations.
 - The SRSF group algorithm's centring step matters: without it the
   registered curves inherit the timing of whichever observation seeded the
-  template. <span style="color:#ffd400">The centring question for DTW and landmark warps is laid out
-  in `WarpCenteringIssue.ipynb` (decision still open).</span>
+  template. <span style="color:#ffd400">Decided (3.4): Karcher mean by default for invertible warps,
+  pointwise mean for DTW, anchoring for landmarks; see `WarpCentering.ipynb`.</span>
 - <span style="color:#ffd400">Smoothing the square-root slope sqrt(gamma') and re-integrating is a safe
   way to smooth any warp: monotonicity, end points and the total amount of
   warping are preserved (`warp.smooth_warp`).</span>
@@ -256,10 +257,8 @@ routine. numba is BSD-2 licensed (GPL-compatible).</span>
 6. **Tests.** <span style="color:#ffd400">See `TESTS.md` for the proposed suite (10 groups, tiers,
    GitHub Actions layout); the current 34 tests cover groups 1, 2, 4 and 6
    in part.</span>
-7. <span style="color:#ffd400">**Default `lam` for SRSF.** Given 2.1a, consider a data-adaptive default
-   (e.g. a fraction of the initial SRSF distance to the template) rather
-   than 0, or at least a warning when the displacement fields in the
-   flattest 10 % of the template exceed a threshold.</span>
+7. <span style="color:#ffd400">**Default `lam` for SRSF.** Done: `lam='auto'` (median total variation
+   of the observations; see 3.4).</span>
 
 ### 3.2 Additional registration methods
 
@@ -300,16 +299,36 @@ Still worth adding:
   macOS and building the notebooks (layout proposed in `TESTS.md`), and a
   Read the Docs site built from the docstrings.
 
-### 3.4 Open questions
+### 3.4 Decisions taken (formerly "open questions")
 
-- <span style="color:#ffd400">Linear methods now return the same result class (`islinear=True`);
-  their warps are still affine maps that may leave [0,1] (faithful to the
-  method). With `cover=True` they contain [0,1].</span>
-- Which centring convention should be the default for DTW and landmark
-  registration? <span style="color:#ffd400">See `WarpCenteringIssue.ipynb`: four options are laid out
-  (Karcher mean, pointwise mean, landmark-anchored, none) with their
-  consequences for displacement-field statistics; current state: SRSF,
-  continuous, sim, pairwise and Bayesian warps are Karcher-centred; landmark
-  warps are implicitly centred through mean target times; DTW warps are
-  uncentred (not invertible unless `strict` / `smooth` are used).</span>
-- `detect_landmarks`: kept, as an initial guess for interactive refinement.
+- <span style="color:#ffd400">**Result classes.** All procedures return a `RegistrationResult`
+  (`LinearRegistrationResult` / `NonlinearRegistrationResult`, `islinear`).
+  The warps of the linear methods remain affine maps that may leave [0,1]
+  (faithful to the method); with `cover=True` they contain [0,1].</span>
+- <span style="color:#ffd400">**Warp centering.** Every nonlinear method has `center=` with the same
+  four options ('karcher', 'pointwise', 'anchor', 'none'; True = the
+  method's default, False = 'none'). Defaults: Karcher mean for all methods
+  with invertible warps (SRSF, continuous, self-modelling, pairwise,
+  Bayesian), pointwise mean for DTW (raw paths may be flat), none for
+  landmark registration (mean targets already anchor the data at the
+  landmarks). 'anchor' (`anchor=` event times or 'max'/'min') keeps a chosen
+  event at its mean time. The method used is recorded in `info['center']`.
+  Documented and demonstrated in `WarpCentering.ipynb` (replaces
+  `WarpCenteringIssue.ipynb`).</span>
+- <span style="color:#ffd400">**Default `lam` for SRSF.** `lam='auto'` = the median SRSF energy of the
+  observations, which equals their median total variation int|f'|dt; it
+  removes the spurious timing effect of simulated dataset A, keeps the
+  genuine effect of B, and leaves the Dorn2012 warps essentially unchanged
+  (SUMMARY 2.1a; `srsf.auto_lam`). `lam=0` reproduces fdasrsf. The value
+  used is in `info['lam']`; notebook 1's fdasrsf comparison uses `lam=0`.</span>
+- **`detect_landmarks`**: kept, as an initial guess for interactive refinement
+  in a front end.
+
+### 3.5 Open questions
+
+- Keep the tuple-unpacking magic of `RegistrationResult` (`yr, wf = ...`)?
+- <span style="color:#ffd400">The 'anchor' centering is exact only for invertible warps (for raw DTW
+  paths the anchor's registered time is ambiguous on flat segments).</span>
+- <span style="color:#ffd400">Real-time DTW with slope-constrained step patterns needs `n_ref` close
+  to the observation lengths; whether to choose `n_ref` automatically
+  (e.g. the median length) is undecided.</span>

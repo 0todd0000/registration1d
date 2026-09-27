@@ -1,6 +1,6 @@
 # Test strategy for reg1d
 
-This document describes the test suite in `tests/` (currently 37 tests,
+This document describes the test suite in `tests/` (currently 44 tests,
 `python -m pytest tests`) and the broader suite proposed for the package
 before it is opened up. The tests are grouped by *what property they
 protect*; each group states which tests already exist and which are proposed.
@@ -30,7 +30,9 @@ tests: `f o g` registered to `f` must return `g^-1`.
 - landmark places explicit landmarks exactly;
 - multivariate SRSF recovers the warp of a 2-component observation;
 - Bayesian posterior mean is close to the inverse generating warp; acceptance rate is in a sane range;
-- real-time: the same event sampled at two rates aligns exactly through the two-grid DP; real-time SRSF / DTW / landmark on Dorn2012 give valid warps ending at each observation's duration.
+- real-time: the same event sampled at two rates aligns exactly through the two-grid DP; real-time SRSF / DTW / landmark on Dorn2012 give valid warps ending at each observation's duration;
+- centering: for every method and each of 'karcher' / 'pointwise' / 'anchor' / 'none' the stated property holds (Karcher mean = identity, pointwise mean = identity, anchored event keeps its mean time), and True/False map to the documented defaults;
+- `lam='auto'` equals the median total variation and suppresses the flat-region warps of simulated dataset A.
 
 Proposed additions: a **parametrised recovery matrix** (pytest parametrize
 over method x warp strength x noise level x Q) with method-specific
