@@ -17,7 +17,14 @@ and, where noted, their source distributions.
 | scipy | 1.18 | BSD-3-Clause | yes | permissive; `interpolate`, `integrate`, `optimize`, `signal` are used |
 | matplotlib | 3.11 | Matplotlib license (PSF-based) | yes | permissive; used only by `reg1d.plot` and the `plot` methods |
 
-No other package is imported by `reg1d` at runtime. In particular `fdasrsf`,
+No other package is imported by `reg1d` at runtime. The modules added in
+the second session (`bayes.py`, `pairwise.py`, `sim.py`, `stats.py`, the
+multivariate SRSF, derivative DTW, DBA, warp smoothing, banded / refined
+DP, the `cover` constraint) introduce no new imports: they use numpy and
+scipy only (`scipy.integrate`, `scipy.optimize`, `scipy.ndimage`,
+`scipy.interpolate.make_smoothing_spline`) and `concurrent.futures` from
+the standard library. numba was used only to *measure* a possible
+speed-up (see SUMMARY.md 2.6) and is not imported. In particular `fdasrsf`,
 `scikit-fda`, `dtw-python`, `dtaidistance`, `numba`, `Cython`, `cffi`,
 `pandas` and `scikit-learn` are **not** imported and do not need to be
 installed.
@@ -55,11 +62,14 @@ disclaimer are retained, and GPL-3.0-or-later code may be included as is.
 
 ## 4. Data
 
-`reg1d/data/Dorn2012-reduced.npz` is a copy of `Data/Dorn2021-reduced.npz`
-from the nlreg1d repository (MIT), a reduced subset of the ground reaction
-force data of Dorn, Schache & Pandy (2012), *J Exp Biol* 215:1944-1956.
-It is included for demonstration and testing. Its inclusion under the GPL is
-permitted by the MIT license; the source is credited in `reg1d/data.py`.
+`reg1d/data/Dorn2012-reduced.npz` and `reg1d/data/Dorn2012-3D.npz` are
+copies of `Data/Dorn2021-reduced.npz` and `Data/Dorn2021-orig.npz` from the
+nlreg1d repository (MIT): ground reaction force data of Dorn, Schache &
+Pandy (2012), *J Exp Biol* 215:1944-1956. `SimulatedA.csv` and
+`SimulatedB.csv` are the simulated two-group datasets of the nlreg1d paper,
+from the same repository. They are included for demonstration and testing.
+Their inclusion under the GPL is permitted by the MIT license; the source is
+credited in `reg1d/data.py`.
 
 ## 5. Summary
 
