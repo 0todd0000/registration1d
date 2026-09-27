@@ -9,11 +9,17 @@ registration package needs to be installed.
 
 ## Installation (development)
 
-    pip install -r requirements.txt
-    pip install -e .        # editable install from this repository (src layout)
+    git clone https://github.com/0todd0000/registration1d.git
+    cd registration1d
+    python3 -m venv .venv
+    source .venv/bin/activate          # Windows: .venv\Scripts\activate
+    pip install -e ".[dev,qt]" PyQt6   # editable install + test/notebook tools + PyQtGraph backend
+    pytest                             # runs tests/ (the PyQtGraph test is skipped if pyqtgraph is absent)
 
-Optional extras: `pip install -e .[qt]` adds the PyQtGraph plotting backend
-(`registration1d.plotqt`), `pip install -e .[dev]` adds the test and notebook tools.
+Minimal install (numpy, scipy, matplotlib only): `pip install -e .`.
+Extras: `[qt]` adds pyqtgraph for `registration1d.plotqt` (a Qt binding such
+as PyQt6 or PySide6 must be installed separately); `[dev]` adds pytest and
+the notebook tools.
 
 ## Quick start
 

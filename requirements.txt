@@ -1,13 +1,12 @@
-# runtime dependencies of registration1d (all BSD-licensed, GPLv3-compatible)
+# runtime dependencies of registration1d (all permissively licensed, GPLv3-compatible)
+# for development use pyproject.toml instead:  pip install -e ".[dev,qt]"
 numpy>=1.22
 scipy>=1.8
 matplotlib>=3.5
 
-# needed only to run / re-render the notebooks
-jupyter
-nbformat
-nbconvert
-ipykernel
+# optional: PyQtGraph plotting backend (registration1d.plotqt); also needs a Qt binding (PyQt6 or PySide6)
+# pyqtgraph>=0.13
+# PyQt6
 
-# needed only to run the test suite
-pytest
+# optional: running / re-rendering the notebooks and the test suite
+# jupyter nbformat nbconvert ipykernel pytest
