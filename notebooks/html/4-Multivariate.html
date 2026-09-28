@@ -7796,7 +7796,7 @@ a.anchor-link {
 <!-- End of mermaid configuration --></head>
 <body class="jp-Notebook" data-jp-theme-light="true" data-jp-theme-name="JupyterLab Light">
 <main>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=e61eaf0b">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=b784ba40">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7813,7 +7813,7 @@ squared Euclidean norm of the D-dimensional difference in the segment costs).</p
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=1117efc0">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=5da1b05d">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7826,6 +7826,7 @@ squared Euclidean norm of the D-dimensional difference in the segment costs).</p
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">registration1d</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">reg1d</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">util</span>                                      <span class="c1"># notebooks/util.py: example datasets and permutation tests</span>
 <span class="nb">print</span><span class="p">(</span><span class="s1">'registration1d version:'</span><span class="p">,</span> <span class="n">reg1d</span><span class="o">.</span><span class="n">__version__</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -7845,7 +7846,7 @@ squared Euclidean norm of the D-dimensional difference in the segment costs).</p
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=474eb098">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=885b46cc">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7853,7 +7854,7 @@ squared Euclidean norm of the D-dimensional difference in the segment costs).</p
 <div class="jp-InputPrompt jp-InputArea-prompt">In [2]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="n">dataset</span> <span class="o">=</span> <span class="n">reg1d</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Dorn2012MV</span><span class="p">()</span>
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">dataset</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">Dorn2012MV</span><span class="p">()</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
 <span class="n">Y</span>       <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="mi">101</span><span class="p">)</span>            <span class="c1"># (18,101,3): linear registration of every component</span>
 <span class="n">speed</span>   <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">group</span>                    <span class="c1"># 0..3</span>
@@ -7898,7 +7899,7 @@ squared Euclidean norm of the D-dimensional difference in the segment costs).</p
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=6269dbdf">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=2a1847bf">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7908,7 +7909,7 @@ squared Euclidean norm of the D-dimensional difference in the segment costs).</p
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=03c9622d">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=b246d538">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7960,7 +7961,7 @@ squared Euclidean norm of the D-dimensional difference in the segment costs).</p
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=405a2b62">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=8af1a216">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7974,7 +7975,7 @@ component.</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=8d8989bd">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=cde32a14">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8030,7 +8031,7 @@ component.</p>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=bcfbb9f0">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=8b9f356a">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>

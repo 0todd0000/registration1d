@@ -7796,7 +7796,7 @@ a.anchor-link {
 <!-- End of mermaid configuration --></head>
 <body class="jp-Notebook" data-jp-theme-light="true" data-jp-theme-name="JupyterLab Light">
 <main>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=18c94910">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=452d8ed5">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7821,7 +7821,7 @@ registration and compares the conclusions.</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=c768c530">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=486c99cb">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7834,6 +7834,7 @@ registration and compares the conclusions.</p>
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">registration1d</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">reg1d</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">util</span>                                      <span class="c1"># notebooks/util.py: example datasets and permutation tests</span>
 <span class="nb">print</span><span class="p">(</span><span class="s1">'registration1d version:'</span><span class="p">,</span> <span class="n">reg1d</span><span class="o">.</span><span class="n">__version__</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -7853,7 +7854,7 @@ registration and compares the conclusions.</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=bbcb630d">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=5b51520c">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7861,13 +7862,13 @@ registration and compares the conclusions.</p>
 <div class="jp-InputPrompt jp-InputArea-prompt">In [2]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">registration1d</span><span class="w"> </span><span class="kn">import</span> <span class="n">stats</span><span class="p">,</span> <span class="n">bayes</span>
+<div class="highlight hl-ipython3"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">registration1d</span><span class="w"> </span><span class="kn">import</span> <span class="n">bayes</span>
 <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
 <span class="n">t</span>      <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">101</span><span class="p">)</span>
 <span class="n">colors</span> <span class="o">=</span> <span class="p">[</span><span class="s1">'0.0'</span><span class="p">,</span> <span class="p">(</span><span class="mf">0.3</span><span class="p">,</span><span class="mf">0.5</span><span class="p">,</span><span class="mf">0.99</span><span class="p">)]</span>
 
 <span class="k">def</span><span class="w"> </span><span class="nf">load</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
-    <span class="n">ds</span> <span class="o">=</span> <span class="n">reg1d</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">SimulatedA</span><span class="p">()</span> <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s1">'A'</span> <span class="k">else</span> <span class="n">reg1d</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">SimulatedB</span><span class="p">()</span>
+    <span class="n">ds</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">SimulatedA</span><span class="p">()</span> <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s1">'A'</span> <span class="k">else</span> <span class="n">util</span><span class="o">.</span><span class="n">SimulatedB</span><span class="p">()</span>
     <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">group</span>
 
 <span class="k">def</span><span class="w"> </span><span class="nf">plot_groups</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">group</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">title</span><span class="p">,</span> <span class="n">ylabel</span><span class="o">=</span><span class="s1">''</span><span class="p">):</span>
@@ -7904,7 +7905,7 @@ registration and compares the conclusions.</p>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=ac2320d6">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=1b8495a9">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7912,12 +7913,12 @@ registration and compares the conclusions.</p>
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <h2 id="1.-The-nlreg1d-analysis-with-registration1d-(point-estimate-registration)">1. The nlreg1d analysis with registration1d (point-estimate registration)<a class="anchor-link" href="#1.-The-nlreg1d-analysis-with-registration1d-(point-estimate-registration)">¶</a></h2><p>SRSF registration (5 iterations, as in <code>fig_datasetA.py</code> / <code>fig_datasetB.py</code>), followed by
 permutation two-sample tests on the registered data (amplitude) and on the displacement fields
-(timing). <code>reg1d.stats.timing_test</code> wraps both tests; the permutation inference uses the maximum
+(timing). <code>reg1d.util.timing_test</code> wraps both tests; the permutation inference uses the maximum
 |t| over the domain (the "tmax" inference of SnPM).</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=bfeb4ca3">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=f5379e0e">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7932,7 +7933,7 @@ permutation two-sample tests on the registered data (amplitude) and on the displ
     <span class="k">for</span> <span class="n">row</span><span class="p">,</span><span class="n">name</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="s1">'AB'</span><span class="p">):</span>
         <span class="n">y</span><span class="p">,</span><span class="n">g</span>   <span class="o">=</span> <span class="n">load</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
         <span class="n">r</span>     <span class="o">=</span> <span class="n">reg1d</span><span class="o">.</span><span class="n">register_srsf</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">max_iter</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">lam</span><span class="o">=</span><span class="n">lam</span><span class="p">)</span>
-        <span class="n">ta</span><span class="p">,</span><span class="n">tt</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">timing_test</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">g</span><span class="p">,</span> <span class="n">n_perm</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">ta</span><span class="p">,</span><span class="n">tt</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">timing_test</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">g</span><span class="p">,</span> <span class="n">n_perm</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
         <span class="n">out</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">result</span><span class="o">=</span><span class="n">r</span><span class="p">,</span> <span class="n">amp</span><span class="o">=</span><span class="n">ta</span><span class="p">,</span> <span class="n">tim</span><span class="o">=</span><span class="n">tt</span><span class="p">)</span>
         <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'lam = </span><span class="si">{</span><span class="n">lam</span><span class="si">!s:</span><span class="s1">&gt;5s</span><span class="si">}</span><span class="s1"> (used </span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">"lam"</span><span class="p">]</span><span class="si">:</span><span class="s1">.1f</span><span class="si">}</span><span class="s1">), dataset </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">: amplitude p = </span><span class="si">{</span><span class="n">ta</span><span class="p">[</span><span class="s2">"p"</span><span class="p">]</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">ta</span><span class="p">[</span><span class="s2">"clusters"</span><span class="p">]</span><span class="si">}</span><span class="s1">,  timing p = </span><span class="si">{</span><span class="n">tt</span><span class="p">[</span><span class="s2">"p"</span><span class="p">]</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">tt</span><span class="p">[</span><span class="s2">"clusters"</span><span class="p">]</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">show</span><span class="p">:</span>
@@ -7977,7 +7978,7 @@ permutation two-sample tests on the registered data (amplitude) and on the displ
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=21e68f7c">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=6f40271a">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8000,7 +8001,7 @@ intact:</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=60020dac">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=f816a5c9">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8056,7 +8057,7 @@ intact:</p>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=ea7e5cf5">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=8d726d01">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8076,7 +8077,7 @@ each observation's timing is.</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=794ef5b2">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=ea81bcf3">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8123,14 +8124,14 @@ each observation's timing is.</p>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Dataset A: 9 s, mean acceptance rate 0.23
+<pre>Dataset A: 11 s, mean acceptance rate 0.23
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Dataset B: 15 s, mean acceptance rate 0.23
+<pre>Dataset B: 18 s, mean acceptance rate 0.23
 </pre>
 </div>
 </div>
@@ -8143,7 +8144,7 @@ each observation's timing is.</p>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=69c7e39c">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=8d36f188">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8165,7 +8166,7 @@ point-estimate analysis is robust to registration uncertainty.</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=202215a1">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=409aa5bc">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8181,7 +8182,7 @@ point-estimate analysis is robust to registration uncertainty.</p>
     <span class="n">pvals</span><span class="p">,</span> <span class="n">tmaxs</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">idx</span><span class="p">:</span>
         <span class="n">d</span>  <span class="o">=</span> <span class="n">reg1d</span><span class="o">.</span><span class="n">warp</span><span class="o">.</span><span class="n">displacement_field</span><span class="p">(</span><span class="n">S</span><span class="p">[:,</span> <span class="n">s</span><span class="p">,</span> <span class="p">:])</span>
-        <span class="n">tt</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">permutation_ttest2</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="n">g</span><span class="o">==</span><span class="mi">0</span><span class="p">],</span> <span class="n">d</span><span class="p">[</span><span class="n">g</span><span class="o">==</span><span class="mi">1</span><span class="p">],</span> <span class="n">n_perm</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">s</span><span class="p">))</span>
+        <span class="n">tt</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">permutation_ttest2</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="n">g</span><span class="o">==</span><span class="mi">0</span><span class="p">],</span> <span class="n">d</span><span class="p">[</span><span class="n">g</span><span class="o">==</span><span class="mi">1</span><span class="p">],</span> <span class="n">n_perm</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">s</span><span class="p">))</span>
         <span class="n">pvals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tt</span><span class="p">[</span><span class="s1">'p'</span><span class="p">]);</span> <span class="n">tmaxs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">tt</span><span class="p">[</span><span class="s1">'t'</span><span class="p">])</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
         <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">tt</span><span class="p">[</span><span class="s1">'t'</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s1">'0.6'</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
     <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">point</span><span class="p">[</span><span class="n">name</span><span class="p">][</span><span class="s1">'tim'</span><span class="p">][</span><span class="s1">'t'</span><span class="p">],</span> <span class="s1">'k'</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">'point-estimate registration'</span><span class="p">)</span>
@@ -8224,7 +8225,7 @@ point-estimate analysis is robust to registration uncertainty.</p>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=33252329">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=9fcf4979">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>

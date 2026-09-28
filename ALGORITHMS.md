@@ -123,7 +123,7 @@ observation i satisfies y_registered_i(t) = y_i(gamma_i(t)).
 | `sim.align_pair(mu, y)` | fit (gamma, a, b) with gamma = int exp(W) (cosine basis, coarse-to-fine, multi-start), (a,b) by least squares for each candidate warp | math: Kneip & Gasser (1988); Gervini & Gasser (2004) |
 | `sim.align_group(y)` | alternate pair fits and shape-function update (cross-sectional mean of amplitude-normalised registered observations); Karcher centring | math |
 
-## 7c. Statistics helpers (`reg1d.stats`)
+## 7c. Statistics helpers (`notebooks/util.py`, outside the package)
 
 | function | description | provenance |
 |---|---|---|
@@ -131,13 +131,13 @@ observation i satisfies y_registered_i(t) = y_i(gamma_i(t)).
 | `permutation_ttest2(...)` | permutation distribution of max |t| over the domain; threshold, p value, suprathreshold clusters | math: SnPM "tmax" inference (Nichols & Holmes 2002) |
 | `timing_test(result, group)` | nlreg1d-style amplitude test (registered data) + timing test (displacement fields) | math; workflow of Pataky et al. (2022) |
 
-## 8. Data and plotting
+## 8. Data (`notebooks/util.py`, outside the package) and plotting
 
 | function | description | provenance |
 |---|---|---|
-| `data.Dorn2012`, `data.load_dorn2012` | loader for the bundled reduced Dorn et al. (2012) GRF dataset (from the nlreg1d repository, MIT) | new loader, same data |
-| `data.Dorn2012MV` | three-component forces, 18 trials (nlreg1d `Data/Dorn2021-orig.npz`) | new loader, same data |
-| `data.SimulatedA`, `data.SimulatedB` | two-group simulated datasets of the nlreg1d paper (amplitude effect / timing effect) | new loader, same data |
+| `util.Dorn2012`, `util.load_dorn2012` | loader for the bundled reduced Dorn et al. (2012) GRF dataset (from the nlreg1d repository, MIT) | new loader, same data |
+| `util.Dorn2012MV` | three-component forces, 18 trials (nlreg1d `Data/Dorn2021-orig.npz`) | new loader, same data |
+| `util.SimulatedA`, `util.SimulatedB` | two-group simulated datasets of the nlreg1d paper (amplitude effect / timing effect) | new loader, same data |
 | `plot.plot_curves`, `plot_warps`, `plot_displacement_fields`, `plot_registration` | matplotlib helpers | new |
 | `plotqt.*` (same names), `plotqt.to_image`, `plotqt.set_theme`, `plotqt.app` | the same helpers on PyQtGraph (optional `[qt]` extra), drawing into caller-supplied PlotItems or stand-alone widgets; `RegistrationResult.plot(backend='pyqtgraph')` | new |
 

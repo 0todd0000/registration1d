@@ -7796,7 +7796,7 @@ a.anchor-link {
 <!-- End of mermaid configuration --></head>
 <body class="jp-Notebook" data-jp-theme-light="true" data-jp-theme-name="JupyterLab Light">
 <main>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=bfe764f5">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=80144318">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7822,7 +7822,7 @@ rendered with <code>plotqt.to_image</code>, next to the corresponding Matplotlib
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=b7790ceb">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=ed09a663">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7837,6 +7837,7 @@ rendered with <code>plotqt.to_image</code>, next to the corresponding Matplotlib
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">registration1d</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">reg1d</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">util</span>                                      <span class="c1"># notebooks/util.py: example datasets and permutation tests</span>
 <span class="nb">print</span><span class="p">(</span><span class="s1">'registration1d version:'</span><span class="p">,</span> <span class="n">reg1d</span><span class="o">.</span><span class="n">__version__</span><span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">registration1d</span><span class="w"> </span><span class="kn">import</span> <span class="n">plotqt</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">IPython.display</span><span class="w"> </span><span class="kn">import</span> <span class="n">Image</span><span class="p">,</span> <span class="n">display</span>
@@ -7861,7 +7862,7 @@ pyqtgraph 0.14.0 | Qt binding: PyQt6
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=605206c0">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=1c8f5cda">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7869,7 +7870,7 @@ pyqtgraph 0.14.0 | Qt binding: PyQt6
 <div class="jp-InputPrompt jp-InputArea-prompt">In [2]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="n">dataset</span> <span class="o">=</span> <span class="n">reg1d</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Dorn2012</span><span class="p">()</span>
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">dataset</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">Dorn2012</span><span class="p">()</span>
 <span class="n">speed</span>   <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">group</span>
 <span class="n">yi</span>      <span class="o">=</span> <span class="n">reg1d</span><span class="o">.</span><span class="n">register_linear</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">101</span><span class="p">)</span><span class="o">.</span><span class="n">y</span>
 <span class="n">colors</span>  <span class="o">=</span> <span class="p">[</span><span class="s1">'k'</span><span class="p">,</span><span class="s1">'b'</span><span class="p">,</span><span class="s1">'g'</span><span class="p">,</span><span class="s1">'r'</span><span class="p">]</span>
@@ -7881,7 +7882,7 @@ pyqtgraph 0.14.0 | Qt binding: PyQt6
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=fdd17a46">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=5242507b">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7891,7 +7892,7 @@ pyqtgraph 0.14.0 | Qt binding: PyQt6
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=19e7a1c5">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=7c001caa">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7929,7 +7930,7 @@ pyqtgraph 0.14.0 | Qt binding: PyQt6
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=167cd9a7">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=1800a279">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7941,7 +7942,7 @@ observations, warps and displacement fields; the return value of each call is th
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=589776dc">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=da4c508c">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7979,7 +7980,7 @@ observations, warps and displacement fields; the return value of each call is th
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=2887fa60">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=a1a20a8c">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8011,7 +8012,7 @@ observations, warps and displacement fields; the return value of each call is th
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=74cac1ec">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=7fc7fb92">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8024,7 +8025,7 @@ global options untouched for applications that manage their own theme.</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=dba4a2af">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=2e0f1e0b">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8055,7 +8056,7 @@ global options untouched for applications that manage their own theme.</p>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=c82fa0f3">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=674e66c8">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8071,7 +8072,7 @@ from within an application.</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=660bd184">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=34cc6122">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>

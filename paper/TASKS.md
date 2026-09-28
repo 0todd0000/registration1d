@@ -54,8 +54,7 @@ Three of them shape the plan more than anything else and are put first.
     │   └── PULL_REQUEST_TEMPLATE.md
     ├── src/registration1d/         the package (src layout)
     │   ├── __init__.py  warp.py  srsf.py  dtw.py  landmark.py  continuous.py  sim.py
-    │   ├── pairwise.py  bayes.py  realtime.py  linear.py  stats.py  reg.py  data.py  plot.py
-    │   └── data/                   Dorn2012-reduced.npz, Dorn2012-3D.npz, SimulatedA.csv, SimulatedB.csv
+    │   └── pairwise.py  bayes.py  realtime.py  linear.py  reg.py  plot.py  plotqt.py
     ├── tests/                      pytest suite split by TESTS.md tiers
     │   ├── test_warp.py  test_methods.py  test_edge_cases.py  test_reference.py  test_slow.py  test_plot.py
     │   └── conftest.py             shared fixtures (Dorn2012, simulated warps)
@@ -64,6 +63,8 @@ Three of them shape the plan more than anything else and are put first.
     │   └── conf.py / mkdocs.yml
     ├── examples/                   short runnable scripts (one per method), used in the docs gallery
     ├── notebooks/                  the executed notebooks (ipynb; html renderings are built by docs, not committed)
+    │   ├── util.py                 example datasets and permutation tests (not part of the package)
+    │   └── data/                   Dorn2012-reduced.npz, Dorn2012-3D.npz, SimulatedA.csv, SimulatedB.csv
     ├── benchmarks/                 timing scripts (pure numpy vs parallel; numba experiment)
     └── paper/                      JOSS paper: paper.md, paper.bib, figures/, make_figures.py
                                     (JOSS requires paper.md and paper.bib in the software repository)

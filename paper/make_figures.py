@@ -3,12 +3,14 @@ Figures for the JOSS paper.  Run from this folder:  python make_figures.py
 '''
 import os, sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'notebooks'))
 import numpy as np
 from matplotlib import pyplot as plt
 import registration1d as reg1d
+import util
 
 HERE    = os.path.dirname(os.path.abspath(__file__))
-dataset = reg1d.data.Dorn2012()
+dataset = util.Dorn2012()
 speed   = dataset.group
 yi      = reg1d.register_linear(dataset.y, n=101).y
 colors  = ['k', 'b', 'g', 'r']

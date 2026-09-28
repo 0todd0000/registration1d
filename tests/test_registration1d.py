@@ -2,6 +2,7 @@
 Tests for reg1d.  Run with:  python -m pytest tests
 '''
 
+import os
 import numpy as np
 import pytest
 import registration1d as reg1d
@@ -10,6 +11,19 @@ from registration1d import warp, srsf, dtw, landmark, continuous, linear
 
 Q = 101
 t = np.linspace(0, 1, Q)
+DATA = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'notebooks', 'data')
+
+
+def _dorn_ragged():
+    '''Dorn2012 anteroposterior GRFs (8 trials of unequal length) and speed codes.'''
+    with np.load(os.path.join(DATA, 'Dorn2012-reduced.npz'), allow_pickle=True) as z:
+        return list(z['y']), np.asarray(z['speed'], dtype=int)
+
+
+def _simulated_a():
+    '''Two-group simulated dataset A (first column = group).'''
+    a = np.loadtxt(os.path.join(DATA, 'SimulatedA.csv'), delimiter=',')
+    return a[:, 1:], np.asarray(a[:, 0], dtype=int)
 
 
 def _bump(t):
@@ -18,8 +32,8 @@ def _bump(t):
 
 @pytest.fixture
 def dorn():
-    d  = reg1d.data.Dorn2012()
-    return reg1d.register_linear(d.y, n=Q).y, d.group
+    y, group = _dorn_ragged()
+    return reg1d.register_linear(y, n=Q).y, group
 
 
 # ------------------------------------------------------------------ warps
@@ -347,33 +361,18 @@ def test_pairwise_and_sim(dorn):
     assert r.info['amplitude'].shape == (8, 2) and np.all(warp.is_valid_warp(r.warps.asarray()))
 
 
-# ------------------------------------------------------------------ stats helpers
-
-def test_stats_permutation():
-    from registration1d import stats
-    rng = np.random.default_rng(0)
-    yA  = rng.standard_normal((10, Q))
-    yB  = rng.standard_normal((10, Q)) + np.where((t > 0.4) & (t < 0.6), 3.0, 0.0)
-    res = stats.permutation_ttest2(yA, yB, n_perm=200, random_state=0)
-    assert res['p'] < 0.05 and len(res['clusters']) >= 1
-    covered = np.zeros(Q, dtype=bool)
-    for lo, hi in res['clusters']:
-        covered[lo:hi+1] = True
-    assert covered[45:56].mean() > 0.8 and covered[:30].mean() < 0.2
-
-
 # ------------------------------------------------------------------ real-time registration
 
 def test_realtime_srsf_dorn():
-    d  = reg1d.data.Dorn2012()
-    r  = reg1d.register_srsf(list(d.y), t='fs=1000', max_iter=3)
+    y, _ = _dorn_ragged()
+    r  = reg1d.register_srsf(y, t='fs=1000', max_iter=3)
     assert r.info['realtime'] and r.y.shape == (8, 101)
     assert np.allclose(r.info['warps_realtime'][:, -1], r.info['durations'])
     assert np.all(warp.is_valid_warp(r.warps.asarray()))
     assert np.argmax(r.y, axis=1).std() < np.argmax(r.y0, axis=1).std()
-    z  = r.apply(list(d.y))                       # same warps applied to a ragged variable
+    z  = r.apply(y)                               # same warps applied to a ragged variable
     assert np.allclose(z, r.y)
-    rn = reg1d.register_srsf(reg1d.register_linear(d.y).y, max_iter=3)
+    rn = reg1d.register_srsf(reg1d.register_linear(y).y, max_iter=3)
     assert np.abs(r.warps.asarray() - rn.warps.asarray()).max() < 0.1     # similar, not identical
 
 
@@ -387,13 +386,13 @@ def test_realtime_pair_recovers_time_scaling():
 
 
 def test_realtime_dtw_and_landmark():
-    d  = reg1d.data.Dorn2012()
-    r  = reg1d.register_dtw(list(d.y), t=0.001, derivative=True, smooth=0.03, max_iter=2)
+    y, _ = _dorn_ragged()
+    r  = reg1d.register_dtw(y, t=0.001, derivative=True, smooth=0.03, max_iter=2)
     assert r.y.shape == (8, 101) and np.all(warp.is_valid_warp(r.warps.asarray()))
-    r  = reg1d.register_landmark(list(d.y), t=0.001, kinds=('zero', 'max'))
+    r  = reg1d.register_landmark(y, t=0.001, kinds=('zero', 'max'))
     assert r.y.shape == (8, 101) and np.argmax(r.y, axis=1).std() <= 1.0
     with pytest.raises(RuntimeError):
-        reg1d.register_dtw(list(d.y), t=0.001, step_pattern='strict', max_iter=1)
+        reg1d.register_dtw(y, t=0.001, step_pattern="strict", max_iter=1)
 
 
 # ------------------------------------------------------------------ centering options and auto lam
@@ -426,11 +425,11 @@ def test_dtw_default_pointwise_and_landmark_default_none(dorn):
 
 
 def test_auto_lam():
-    A   = reg1d.data.SimulatedA()
-    r   = reg1d.register_srsf(A.y, max_iter=3)
+    yA, _ = _simulated_a()
+    r   = reg1d.register_srsf(yA, max_iter=3)
     assert 40 < r.info['lam'] < 60                         # median total variation of the observations
-    assert np.isclose(r.info['lam'], srsf.auto_lam(srsf.srsf(A.y)))
-    r0  = reg1d.register_srsf(A.y, max_iter=3, lam=0)
+    assert np.isclose(r.info['lam'], srsf.auto_lam(srsf.srsf(yA)))
+    r0  = reg1d.register_srsf(yA, max_iter=3, lam=0)
     assert r0.info['lam'] == 0
     # the penalty suppresses the noise-driven warps in the flat tails of dataset A
     assert np.abs(r.displacement_fields[:, :15]).max() < np.abs(r0.displacement_fields[:, :15]).max()

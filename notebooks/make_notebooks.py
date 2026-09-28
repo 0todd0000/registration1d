@@ -26,11 +26,12 @@ sys.path.insert(0, os.path.abspath('../src'))   # so that this notebook finds re
 import numpy as np
 from matplotlib import pyplot as plt
 import registration1d as reg1d
+import util                                      # notebooks/util.py: example datasets and permutation tests
 print('registration1d version:', reg1d.__version__)
 '''
 
 PLOT_DORN = '''
-dataset = reg1d.data.Dorn2012()
+dataset = util.Dorn2012()
 speed   = dataset.group     # running speed code (0-3)
 y       = dataset.y         # object array: 8 observations, 185-383 frames each
 print(dataset)
@@ -639,7 +640,7 @@ squared Euclidean norm of the D-dimensional difference in the segment costs).
 """),
 code(SETUP),
 code("""
-dataset = reg1d.data.Dorn2012MV()
+dataset = util.Dorn2012MV()
 print(dataset)
 Y       = dataset.resample(101)            # (18,101,3): linear registration of every component
 speed   = dataset.group                    # 0..3
@@ -754,7 +755,7 @@ procedure can be run uncentred for comparison. The method used is recorded in
 """),
 code(SETUP),
 code("""
-dataset = reg1d.data.Dorn2012()
+dataset = util.Dorn2012()
 speed   = dataset.group
 yi      = reg1d.register_linear(dataset.y, n=101).y
 colors  = ['k','b','g','r']
@@ -800,11 +801,10 @@ comparisons between methods or studies are not. Centering makes the reference th
 of the sample, the only choice that does not depend on an arbitrary observation.
 """),
 code("""
-from registration1d import stats
 groupAB = np.where(speed <= 1, 0, 1)         # slow (0,1) vs fast (2,3)
 for c,r in res.items():
     d  = r.displacement_fields
-    tt = stats.permutation_ttest2(d[groupAB==0], d[groupAB==1], n_perm=500, random_state=0)
+    tt = util.permutation_ttest2(d[groupAB==0], d[groupAB==1], n_perm=500, random_state=0)
     one = np.abs(d.mean(axis=0)).max()
     print(f"center={c!r:12s}: two-sample max|t| = {np.abs(tt['t']).max():.2f} (p = {tt['p']:.3f}, clusters {tt['clusters']});   max |mean displacement| = {one:.4f}")
 """),
@@ -906,13 +906,13 @@ registration and compares the conclusions.
 """),
 code(SETUP),
 code("""
-from registration1d import stats, bayes
+from registration1d import bayes
 np.random.seed(0)
 t      = np.linspace(0, 1, 101)
 colors = ['0.0', (0.3,0.5,0.99)]
 
 def load(name):
-    ds = reg1d.data.SimulatedA() if name == 'A' else reg1d.data.SimulatedB()
+    ds = util.SimulatedA() if name == 'A' else util.SimulatedB()
     return ds.y, ds.group
 
 def plot_groups(y, group, ax, title, ylabel=''):
@@ -937,7 +937,7 @@ md("""
 
 SRSF registration (5 iterations, as in `fig_datasetA.py` / `fig_datasetB.py`), followed by
 permutation two-sample tests on the registered data (amplitude) and on the displacement fields
-(timing). `reg1d.stats.timing_test` wraps both tests; the permutation inference uses the maximum
+(timing). `reg1d.util.timing_test` wraps both tests; the permutation inference uses the maximum
 |t| over the domain (the "tmax" inference of SnPM).
 """),
 code("""
@@ -948,7 +948,7 @@ def analyse(lam, show=True):
     for row,name in enumerate('AB'):
         y,g   = load(name)
         r     = reg1d.register_srsf(y, max_iter=5, lam=lam)
-        ta,tt = stats.timing_test(r, g, n_perm=1000, random_state=0)
+        ta,tt = util.timing_test(r, g, n_perm=1000, random_state=0)
         out[name] = dict(result=r, amp=ta, tim=tt)
         print(f'lam = {lam!s:>5s} (used {r.info["lam"]:.1f}), dataset {name}: amplitude p = {ta["p"]:.3f} {ta["clusters"]},  timing p = {tt["p"]:.3f} {tt["clusters"]}')
         if show:
@@ -1055,7 +1055,7 @@ for ax,name in zip(AX, 'AB'):
     pvals, tmaxs = [], []
     for s in idx:
         d  = reg1d.warp.displacement_field(S[:, s, :])
-        tt = stats.permutation_ttest2(d[g==0], d[g==1], n_perm=300, random_state=int(s))
+        tt = util.permutation_ttest2(d[g==0], d[g==1], n_perm=300, random_state=int(s))
         pvals.append(tt['p']); tmaxs.append(np.abs(tt['t']).max())
         ax.plot(x, tt['t'], color='0.6', lw=0.5)
     ax.plot(x, point[name]['tim']['t'], 'k', lw=2, label='point-estimate registration')
@@ -1136,7 +1136,7 @@ difference in derivative scaling is large).
 """),
 code(SETUP),
 code("""
-dataset = reg1d.data.Dorn2012()
+dataset = util.Dorn2012()
 speed   = dataset.group
 ylist   = list(dataset.y)                       # ragged list: 8 observations, 185-383 frames
 fs      = 1000.0                                # assumed sampling frequency (Hz)
@@ -1299,7 +1299,7 @@ import pyqtgraph as pg
 print('pyqtgraph', pg.__version__, '| Qt binding:', pg.Qt.QT_LIB)
 """),
 code("""
-dataset = reg1d.data.Dorn2012()
+dataset = util.Dorn2012()
 speed   = dataset.group
 yi      = reg1d.register_linear(dataset.y, n=101).y
 colors  = ['k','b','g','r']

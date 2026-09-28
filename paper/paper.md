@@ -98,9 +98,9 @@ smoothing of warps, which turns piecewise DTW paths into physically
 plausible warps; a `cover` constraint for affine registration that keeps
 the end points of force curves; a common set of warp-centring
 conventions (Karcher mean, pointwise mean, event anchor or none) available
-for every method; and permutation-based tests on registered data and
-displacement fields that reproduce the amplitude-versus-timing analysis
-of @Pataky2022.
+for every method. The accompanying notebooks reproduce the
+amplitude-versus-timing analysis of @Pataky2022 with permutation tests on
+registered data and displacement fields.
 
 # Software design
 

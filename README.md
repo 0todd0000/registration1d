@@ -28,12 +28,12 @@ the short alias is used throughout the documentation and notebooks.
 
     import registration1d as reg1d
 
-    dataset = reg1d.data.Dorn2012()                     # 8 observations of unequal length
-    yi      = reg1d.register_linear(dataset.y, n=101).y # (8,101) linearly registered
+    y       = [...]                                     # 8 observations of unequal length (lists of 1D arrays)
+    yi      = reg1d.register_linear(y, n=101).y         # (8,101) linearly registered
     yr, wf  = reg1d.register_srsf(yi, max_iter=5)       # nonlinearly registered + warps
 
     result  = reg1d.register_srsf(yi, t=np.linspace(0, 100, 101))   # explicit time grid (% stance)
-    result.plot(group=dataset.group)                    # before / after / warps
+    result.plot(group=group)                            # before / after / warps
     result.apply(other_variable)                        # same warps applied to another (8,101) variable
     result.displacement_fields_t                        # displacement fields in % stance
 
@@ -61,8 +61,9 @@ Observations of different lengths can be registered in **real time**
 without prior resampling by passing them as a list with their sampling
 interval, e.g. `register_srsf(ylist, t='fs=1000')` (see `reg1d.realtime`
 and the RealTimeRegistration notebook).
-`reg1d.stats` provides permutation-based two-sample tests on registered data
-and displacement fields (the nlreg1d timing analysis).
+The package contains registration algorithms only. The example datasets
+(`notebooks/data/`) and the permutation tests used in the demonstrations
+live in `notebooks/util.py`, outside the package.
 
 See `ALGORITHMS.md` for the provenance of each algorithm, `GPL-COMPLIANCE.md`
 for the licensing status of all third-party code, `SUMMARY.md` for development

@@ -6,9 +6,10 @@ Quick start:
 The recommended import convention is  import registration1d as reg1d
 
 >>> import registration1d as reg1d
->>> dataset = reg1d.data.Dorn2012()
->>> yi      = reg1d.register_linear( dataset.y, n=101 ).y # (J,101) linearly registered
+>>> yi      = reg1d.register_linear( y, n=101 ).y         # (J,101) linearly registered
 >>> yr, wf  = reg1d.register_srsf( yi, max_iter=5 )       # nonlinearly registered + warps
+
+where y is a (J,Q) array or a list of J observations of different lengths.
 
 Registration methods (all return a RegistrationResult):
 
@@ -50,10 +51,8 @@ from . import continuous
 from . import bayes
 from . import pairwise
 from . import sim
-from . import stats
 from . import realtime
 from . import reg
-from . import data
 from . import plot
 # registration1d.plotqt (PyQtGraph backend) is imported on demand: it needs the optional [qt] extra
 

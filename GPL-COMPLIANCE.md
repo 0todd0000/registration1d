@@ -18,7 +18,7 @@ and, where noted, their source distributions.
 | matplotlib | 3.11 | Matplotlib license (PSF-based) | yes | permissive; used only by `reg1d.plot` and the `plot` methods |
 
 No other package is imported by `registration1d` at runtime. The modules added in
-the second session (`bayes.py`, `pairwise.py`, `sim.py`, `stats.py`, `realtime.py`, the
+the second session (`bayes.py`, `pairwise.py`, `sim.py`, `realtime.py`, the
 multivariate SRSF, derivative DTW, DBA, warp smoothing, banded / refined
 DP, the `cover` constraint) introduce no new imports: they use numpy and
 scipy only (`scipy.integrate`, `scipy.optimize`, `scipy.ndimage`,
@@ -76,7 +76,8 @@ Pandy (2012), *J Exp Biol* 215:1944-1956. `SimulatedA.csv` and
 `SimulatedB.csv` are the simulated two-group datasets of the nlreg1d paper,
 from the same repository. They are included for demonstration and testing.
 Their inclusion under the GPL is permitted by the MIT license; the source is
-credited in `registration1d/data.py`.
+credited in `notebooks/util.py`. (The datasets are not part of the
+installed package: they live in `notebooks/data/`.)
 
 ## 5. Summary
 

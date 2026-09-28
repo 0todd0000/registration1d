@@ -1,6 +1,6 @@
 # registration1d — summary of findings and suggestions for further development
 
-Date: 2026-09-28. Status: preliminary package (v0.0.2), 46 tests,
+Date: 2026-09-29. Status: preliminary package (v0.0.2), 45 tests,
 ten executed notebooks; source moved to the src layout for the public repository.
 
 <span style="color:#ffd400">**Highlighted text (yellow) marks additions and changes made after the review
@@ -31,8 +31,9 @@ contains:
   subclasses `LinearRegistrationResult` / `NonlinearRegistrationResult` with an
   `islinear` attribute, and with `apply` / `unapply` / `inverse_warps` and an
   optional explicit time grid `t`</span>;
-- <span style="color:#ffd400">`reg1d.stats`: two-sample t and permutation (max-t) inference and a
-  `timing_test` helper that reproduces the nlreg1d amplitude + timing analysis</span>;
+- <span style="color:#ffd400">two-sample t and permutation (max-t) inference and a
+  `timing_test` helper that reproduces the nlreg1d amplitude + timing analysis
+  (moved out of the package to `notebooks/util.py` on 2026-09-29)</span>;
 - the Dorn2012 dataset <span style="color:#ffd400">(reduced AND three-component), the simulated
   datasets A and B</span>, six notebooks (`notebooks/*.ipynb` + `html/`),
   a test suite (`tests/`, <span style="color:#ffd400">described in `TESTS.md`</span>), `requirements.txt`, `pyproject.toml`.
@@ -51,17 +52,17 @@ Layout:
       bayes.py        Bayesian registration (pCN sampler)
       realtime.py     real-time registration of observations of different lengths
       linear.py       resampling, shift and affine registration (fill rules, cover constraint)
-      stats.py        two-sample tests with permutation inference
       reg.py          public register_* functions and result classes
-      data.py, plot.py, plotqt.py (optional PyQtGraph backend), data/*.npz, data/*.csv
-    notebooks/        1-Registration, 2-Methods, 3-Warps, 4-Multivariate, WarpCenteringIssue,
+      plot.py, plotqt.py (optional PyQtGraph backend)
+    notebooks/        util.py (example datasets, permutation tests), data/*.npz, data/*.csv
+                      1-Registration, 2-Methods, 3-Warps, 4-Multivariate, WarpCenteringIssue,
                       Bayesian-vs-nlreg1d, RealTimeRegistration (+ html/, make_notebooks.py)
                       (WarpCentering replaces the earlier WarpCenteringIssue)
                       PyQtGraph-backend; jiku-data-datasets (all 54 one-dimensional jiku-data
                       datasets, make_jikudata_notebook.py); power_simulated_datasets
                       (false-positive rate and power after registration, power1d
                       simulations, make_power_notebook.py + cached results .pkl)
-    tests/            pytest suite (46 tests)
+    tests/            pytest suite (45 tests)
     TESTS.md          test strategy;  PAPER-IDEAS.md  publication ideas
 
 ## 2. Key findings
@@ -229,9 +230,29 @@ nominal. With thresholds calibrated per method no method beat the unregistered t
 one-sample pulse condition (base: 0.62 unregistered vs 0.20–0.50 registered), the methods
 converge only as amplitude or J grows, and SRSF/DTW inflate the recovered amplitude by 30–40 %
 at unit amplitude. Consequences: a registrability screen before registration, a
-null-calibrated (permutation-with-registration) test in `reg1d.stats`, and a noise-based rather
-than signal-based rule for `lam`. The two-sample case with a group timing difference, where
-registration can gain power, is the next simulation.</span>
+null-calibrated (permutation-with-registration) test in `notebooks/util.py`, and a noise-based rather
+than signal-based rule for `lam`. Random warps of the signal instead of position shifts
+(Part C, 30 datasets per condition) do not change the one-sample picture; in a two-sample
+design with a true group timing difference (Part D, 30 datasets per condition) registration
+moves the effect from the registered amplitudes (power 0.30 → 0.03-0.07) into the warps, where
+the displacement-field test finds it (SRSF 0.5, derivative DTW 0.8). Parts C and D are
+approximate and refinable overnight with `make_power_notebook.py --simulate --n-two 200 ...`.</span>
+
+### <span style="color:#ffd400">2.6b Package scope (2026-09-29)</span>
+
+<span style="color:#ffd400">Standing rule: the package contains registration algorithms only.
+Moved out to `notebooks/util.py` + `notebooks/data/`: `stats.py` (two-sample t, permutation
+max-t inference, `timing_test`: simulation / demonstration statistics) and `data.py` with the
+bundled datasets (demonstration data). The tests load the Dorn2012 and SimulatedA files
+directly from `notebooks/data/`; the permutation-test test was dropped with the module.
+Kept, with reasons: `warp.random_warp` (warp machinery, used by the tests to construct
+ground truth and by the simulations); `landmark.detect_landmarks` / `peaks_as_landmarks`
+(initial-guess front end for landmark registration, requested earlier);
+`srsf.amplitude_distance` / `phase_distance` (elastic metrics, part of the SRSF method);
+`realtime.py` (registration of ragged input). Flagged but kept pending a decision:
+`plot.py` and `plotqt.py` are not registration algorithms; they back `result.plot()` and the
+PyQtGraph backend that was requested explicitly, so they stay unless the rule is applied to
+plotting too (then `result.plot` would move to `notebooks/util.py` as well).</span>
 
 ### 2.7 Things learned the hard way (worth keeping in mind)
 
@@ -320,8 +341,8 @@ Still worth adding:
 
 ### 3.3 Integration
 
-- <span style="color:#ffd400">Done: `reg1d.stats` (two-sample t, permutation max-t inference,
-  `timing_test`) reproduces the nlreg1d amplitude + timing analysis;
+- <span style="color:#ffd400">Done: `notebooks/util.py` (two-sample t, permutation max-t inference,
+  `timing_test`; formerly `reg1d.stats`) reproduces the nlreg1d amplitude + timing analysis;
   `Bayesian-vs-nlreg1d.ipynb` shows the full workflow; `result.apply`
   covers the register-on-one-variable-apply-to-others workflow.</span>
 - For spm1d users: a helper producing `(yr, d)` in the layout expected by
