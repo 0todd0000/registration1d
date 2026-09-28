@@ -28,7 +28,7 @@ classifiers = [
 [project.optional-dependencies]
 qt = ["pyqtgraph>=0.13"]
 dev = ["pytest", "jupyter", "nbformat", "nbconvert", "ipykernel"]
-datasets = ["jiku-data"]
+notebooks = ["jiku-data", "power1d"]
 
 [project.urls]
 Homepage = "https://github.com/0todd0000/registration1d"

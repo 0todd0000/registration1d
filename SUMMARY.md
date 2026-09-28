@@ -1,7 +1,7 @@
 # registration1d — summary of findings and suggestions for further development
 
 Date: 2026-09-28. Status: preliminary package (v0.0.2), 46 tests,
-nine executed notebooks; source moved to the src layout for the public repository.
+ten executed notebooks; source moved to the src layout for the public repository.
 
 <span style="color:#ffd400">**Highlighted text (yellow) marks additions and changes made after the review
 of the first version (2026-09-27, afternoon and evening).**</span>
@@ -58,7 +58,9 @@ Layout:
                       Bayesian-vs-nlreg1d, RealTimeRegistration (+ html/, make_notebooks.py)
                       (WarpCentering replaces the earlier WarpCenteringIssue)
                       PyQtGraph-backend; jiku-data-datasets (all 54 one-dimensional jiku-data
-                      datasets, make_jikudata_notebook.py)
+                      datasets, make_jikudata_notebook.py); power_simulated_datasets
+                      (false-positive rate and power after registration, power1d
+                      simulations, make_power_notebook.py + cached results .pkl)
     tests/            pytest suite (46 tests)
     TESTS.md          test strategy;  PAPER-IDEAS.md  publication ideas
 
@@ -214,6 +216,22 @@ so the rest of `srsf.py` stays as it is; the compiled kernel is ~40 lines
 of plain loops, arguably *more* readable than the vectorised numpy version.
 Recommendation: not now; add as an optional accelerator if J ~ 1000 becomes
 routine. numba is BSD-2 licensed (GPL-compatible).</span>
+
+### <span style="color:#ffd400">2.6a Registration introduces regularity into noise (notebooks jiku-data-datasets, power_simulated_datasets)</span>
+
+<span style="color:#ffd400">On the 38 featureless jiku-data random-field datasets every elastic
+method reduced the residual; in controlled power1d simulations (smooth Gaussian noise,
+FWHM 25, one-sample max-t test) the false-positive rate at the unregistered α = 0.05
+threshold after SRSF registration rose from 0.15 (J = 5) to 0.75 (J = 10) and 1.00 (J = 50);
+`lam='auto'` does not change this. Continuous registration inflates the maximum t most
+(calibrated threshold 34 at J = 5) but plateaus near 0.5; the self-modelling method stays at
+nominal. With thresholds calibrated per method no method beat the unregistered test in any
+one-sample pulse condition (base: 0.62 unregistered vs 0.20–0.50 registered), the methods
+converge only as amplitude or J grows, and SRSF/DTW inflate the recovered amplitude by 30–40 %
+at unit amplitude. Consequences: a registrability screen before registration, a
+null-calibrated (permutation-with-registration) test in `reg1d.stats`, and a noise-based rather
+than signal-based rule for `lam`. The two-sample case with a group timing difference, where
+registration can gain power, is the next simulation.</span>
 
 ### 2.7 Things learned the hard way (worth keeping in mind)
 

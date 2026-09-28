@@ -69,9 +69,12 @@ for the licensing status of all third-party code, `SUMMARY.md` for development
 notes, `TESTS.md` for the test strategy, and the notebooks in `notebooks/`
 (HTML renderings in `notebooks/html/`) for demonstrations; the
 `jiku-data-datasets` notebook runs every method on all one-dimensional
-datasets of the [jiku-data](https://pypi.org/project/jiku-data/) package
-(`pip install jiku-data`, or the `[datasets]` extra; it depends on
-PyTables, which is why it is not part of `[dev]`). The package
+datasets of the [jiku-data](https://pypi.org/project/jiku-data/) package,
+and the `power_simulated_datasets` notebook measures false-positive rates
+and statistical power after registration on simulated data built with
+[power1d](https://spm1d.org/power1d) (`pip install jiku-data power1d`, or
+the `[notebooks]` extra; jiku-data depends on PyTables, which is why these
+are not part of `[dev]`). The package
 source is in `src/registration1d/`; the draft software paper is in `paper/`.
 
 ## Tests
