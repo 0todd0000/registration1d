@@ -127,6 +127,8 @@ def affine_pair(y_template, y, max_shift=0.2, scale_range=(0.7, 1.4), fill_value
     Q   = y.size
     def f(p):
         a, b = p
+        if not (scale_range[0] <= a <= scale_range[1]) or abs(b) > max_shift:
+            return np.inf      # keep the local refinement inside the search box
         if cover and (b > 1e-12 or a + b < 1 - 1e-12):
             return np.inf
         return _sse(y, y_template, _affine_warp(a, b, Q), fill_value)

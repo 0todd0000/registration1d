@@ -299,6 +299,21 @@ def test_affine_cover_zero_fill(dorn):
     assert np.abs(r.y[:, -1]).max() <= np.abs(yi[:, -1]).max() + 1e-9
 
 
+def test_affine_respects_search_box():
+    # featureless smooth noise: without bounds on the local refinement the
+    # scale factor drifts to arbitrarily large values (the curve is squeezed
+    # to a point and the zero fill trivially minimises the residual)
+    from scipy.ndimage import gaussian_filter1d
+    rng = np.random.default_rng(3)
+    y   = gaussian_filter1d(rng.standard_normal((12, 101)), 6, axis=1)
+    for cover in (False, True):
+        r = reg1d.register_affine(y, cover=cover, fill_value='zero', scale_range=(0.7, 1.4), max_shift=0.2,
+                                  center=False)   # centering rescales the parameters by their mean
+        a, b = r.info['params'][:, 0], r.info['params'][:, 1]
+        assert np.all(a <= 1.4 + 1e-6) and np.all(a >= 0.7 - 1e-6)
+        assert np.all(np.abs(b) <= 0.2 + 1e-6)
+
+
 def test_fill_values():
     y = _bump(t)
     for fv in ('edge', 'zero', 'extrapolate', 0.5):

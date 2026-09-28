@@ -72,7 +72,7 @@ test over all entries of `reg.METHODS`.
 - observations containing NaN (raise, or document masking);
 - a band / window too narrow to admit a path (clear error message);
 - `landmarks` outside (0,1) or non-monotone (clear error);
-- degenerate affine maps (a -> 0) rejected by the bounds;
+- degenerate affine maps (a -> 0 or a -> infinity) rejected by the bounds (`test_affine_respects_search_box` covers the drift of the local refinement on featureless data);
 - Bayesian sampler with `K = 1`, `n_samples = 1`.
 
 ## 6. Behavioural tests on real data (exist in part)
