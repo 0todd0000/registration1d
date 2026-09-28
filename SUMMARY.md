@@ -1,7 +1,7 @@
 # registration1d — summary of findings and suggestions for further development
 
-Date: 2026-09-28. Status: preliminary package (v0.0.2), 45 tests,
-eight executed notebooks; source moved to the src layout for the public repository.
+Date: 2026-09-28. Status: preliminary package (v0.0.2), 46 tests,
+nine executed notebooks; source moved to the src layout for the public repository.
 
 <span style="color:#ffd400">**Highlighted text (yellow) marks additions and changes made after the review
 of the first version (2026-09-27, afternoon and evening).**</span>
@@ -57,7 +57,9 @@ Layout:
     notebooks/        1-Registration, 2-Methods, 3-Warps, 4-Multivariate, WarpCenteringIssue,
                       Bayesian-vs-nlreg1d, RealTimeRegistration (+ html/, make_notebooks.py)
                       (WarpCentering replaces the earlier WarpCenteringIssue)
-    tests/            pytest suite (44 tests)
+                      PyQtGraph-backend; jiku-data-datasets (all 54 one-dimensional jiku-data
+                      datasets, make_jikudata_notebook.py)
+    tests/            pytest suite (46 tests)
     TESTS.md          test strategy;  PAPER-IDEAS.md  publication ideas
 
 ## 2. Key findings
@@ -114,7 +116,7 @@ methods: all were written from the mathematics; no new imports)</span>.
 | <span style="color:#ffd400">self-modelling (sim)</span> | <span style="color:#ffd400">models amplitude explicitly (a_i, b_i), smooth warps; sensible on Dorn2012; same local-minimum caveat as the continuous method</span> |
 | <span style="color:#ffd400">pairwise synchronisation</span> | <span style="color:#ffd400">template-free; with the SRSF engine gives results close to SRSF; J(J-1)/2 alignments</span> |
 | <span style="color:#ffd400">Bayesian</span> | <span style="color:#ffd400">posterior-mean warps at least as accurate as the DP warps in simulation, plus credible bands; ~100x slower than DP; credible intervals optimistic (see 2.5)</span> |
-| shift / affine | only global timing; little value here beyond a baseline. <span style="color:#ffd400">**End-point effects** (cut-off ends when a + b < 1, edge-value padding) are removed by `cover=True` (γ([0,1]) ⊇ [0,1], so both zero ends are retained) together with `fill_value='zero'`; `'extrapolate'` is also available (notebook 2)</span> |
+| shift / affine | only global timing; little value here beyond a baseline. <span style="color:#ffd400">The Nelder-Mead refinement in `affine_pair` is confined to the `scale_range` / `max_shift` search box (found on featureless jiku-data fields, where the scale drifted to ~100; `test_affine_respects_search_box`).</span> <span style="color:#ffd400">**End-point effects** (cut-off ends when a + b < 1, edge-value padding) are removed by `cover=True` (γ([0,1]) ⊇ [0,1], so both zero ends are retained) together with `fill_value='zero'`; `'extrapolate'` is also available (notebook 2)</span> |
 
 The scikit-fda methods that were considered are all represented: its
 `ElasticRegistration` is SRSF (via fdasrsf), `LeastSquaresShiftRegistration`
