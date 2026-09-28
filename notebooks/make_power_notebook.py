@@ -4,6 +4,9 @@ Generate, execute and render notebooks/power_simulated_datasets.ipynb.
     python make_power_notebook.py --simulate   # run the simulations (hours) and cache the results
     python make_power_notebook.py              # build the notebook from the cached results
 
+    # refine: larger numbers of simulated datasets (cached conditions with fewer datasets are re-run)
+    python make_power_notebook.py --simulate --n-null 400 --n-alt 200 --n-warp 200 --n-two 200
+
 Requires power1d (pip install power1d). The simulation code below (SIM_CODE)
 is the code that appears in the notebook; --simulate executes the same code
 outside the notebook so that the long run does not sit inside a kernel. The
@@ -36,7 +39,10 @@ power1d's definition of numerical power.
 noise; the alternative model adds a `GaussianPulse` of amplitude `amp` (in units of the noise
 standard deviation) and full width at half maximum `fwhm` (% of the domain), centred at 50 % of
 the domain, with the centre of each observation's pulse displaced by an integer number of nodes
-drawn from N(0, `jsd`) (`jsd` in % of the domain) — the "position variability" of the signal.
+drawn from N(0, `qsd`) (`qsd` in nodes, i.e. % of the domain, following power1d's use of `q` for
+domain position) — the "position variability" of the signal. Parts C and D replace the position
+shift by a random warp of the signal (`reg1d.random_warp`, three basis functions, strength
+`wsd`), which is the kind of timing variability elastic methods are designed to remove.
 Each simulated dataset is registered by each method (or left unregistered), a one-sample
 t continuum is computed with `power1d.stats.t_1sample`, and its maximum is recorded.
 
@@ -52,7 +58,7 @@ registering without recalibrating the test).
 after registration relative to before (`SSE ratio`); the peak of the cross-sectional mean of
 the registered data relative to the true amplitude (`peak / amp`, amplitude recovery); and the
 squared correlation between the true pulse displacements and the displacements estimated by the
-warps at the pulse centre, γᵢ(0.5) − 0.5 (`timing r²`, timing recovery; undefined when `jsd` = 0).
+warps at the pulse centre, γᵢ(0.5) − 0.5 (`timing r²`, timing recovery; undefined when `qsd` = 0).
 
 **Methods.** `none` (linearly registered data as generated), `SRSF lam=0` (unpenalised
 Fisher–Rao alignment), `SRSF` (`lam='auto'`), `DDTW` (derivative DTW, strict step pattern,
@@ -60,10 +66,28 @@ smoothed warps), `continuous` (Ramsay–Li, 4 basis functions), `self-modelling`
 model, 4 basis functions). Iteration counts are reduced (SRSF 3, others 2) to keep the run time
 of roughly 2 000 registrations per method manageable; all other settings are the defaults.
 
-**Simulations.** Part A: pure noise, J ∈ {5, 10, 20, 50}, 100 datasets per J. Part B: signal
-present, one factor varied at a time about the base condition (J = 10, amp = 1, fwhm = 20,
-jsd = 5): amp ∈ {0.5, 1, 2, 4}, fwhm ∈ {10, 20, 40}, jsd ∈ {0, 2.5, 5, 10}, J ∈ {5, 10, 20, 50};
-60 datasets per condition. The null simulations of Part A provide the thresholds for Part B.
+**Simulations and their size.** The number of simulated datasets per condition is set by the
+constants `N_NULL`, `N_ALT`, `N_WARP`, `N_TWO` at the top of the code cell below and is printed
+again in every results section. Currently: **Part A** (pure noise, J ∈ {5, 10, 20, 50}):
+N_NULL = 100 datasets per J. **Part B** (signal with position shifts, one factor varied at a time
+about the base condition J = 10, amp = 1, fwhm = 20, qsd = 5: amp ∈ {0.5, 1, 2, 4},
+fwhm ∈ {10, 20, 40}, qsd ∈ {0, 2.5, 5, 10}, J ∈ {5, 10, 20, 50}): N_ALT = 60 datasets per
+condition. **Part C** (signal with random warps, wsd ∈ {0, 0.05, 0.1, 0.2} at amp = 1 and
+wsd ∈ {0, 0.1, 0.2} at amp = 2): N_WARP = 30 datasets per condition. **Part D** (two-sample timing difference): N_TWO = 30 datasets per condition.
+The null simulations of Part A provide the thresholds for Parts B and C; Part D uses its own
+null (no group difference). Parts C and D are deliberately small and their results are
+approximate (see the warnings in those sections). With 100 null datasets the 95th percentile of
+the null distribution, and hence every calibrated power, is itself uncertain by a few percent.
+
+**Re-running and refining.** The results are cached in `power_simulated_datasets_results.pkl`;
+the notebook loads the cache and runs only conditions that are missing or that hold fewer
+datasets than requested. To refine, increase the `N_*` constants (in the code cell below and in
+`make_power_notebook.py`, which holds the same code) or run, e.g. overnight,
+
+    python make_power_notebook.py --simulate --n-null 400 --n-alt 200 --n-warp 200 --n-two 200
+    python make_power_notebook.py
+
+The full run at the current sizes took about 3 hours on two cores.
 ''')
 
 
@@ -78,25 +102,45 @@ import registration1d as reg1d
 import power1d
 warnings.filterwarnings('ignore')
 
+# ----- number of simulated datasets per condition (approximate results: increase and re-run) -----
+N_NULL = 100     # Part A: pure noise, per sample size
+N_ALT  = 60      # Part B: signal with position shifts, per condition
+N_WARP = 30      # Part C: signal with random warps, per condition
+N_TWO  = 30      # Part D: two-sample timing difference, per condition
+
 Q, NOISE_FWHM, ALPHA = 101, 25, 0.05
 CACHE   = 'power_simulated_datasets_results.pkl'
 METHODS = ['none', 'SRSF lam=0', 'SRSF', 'DDTW', 'continuous', 'self-modelling']
 COLORS  = dict(zip(METHODS, ['k', 'r', 'orange', 'b', 'g', 'm']))
+TGRID   = np.linspace(0, 1, Q)
 
-def make_dataset(J, amp, fwhm, jsd, rng):
-    """Noise (power1d SmoothGaussian) plus, if amp > 0, a GaussianPulse per observation whose
-    centre is displaced by an integer number of nodes drawn from N(0, jsd). Returns (y, shifts)
-    with shifts in units of the normalised domain."""
+def make_dataset(J, amp, fwhm, qsd, wsd, delta, rng):
+    """Noise (power1d SmoothGaussian) plus, if amp > 0, a GaussianPulse per observation.
+    qsd   : SD (nodes) of an integer displacement of the pulse centre (position variability)
+    wsd   : sigma of a random warp (reg1d.random_warp, 3 basis functions) applied to the pulse
+    delta : a fixed smooth warp t + delta sin(pi t) applied to the pulse (peak displaced by ~delta
+            of the domain), used for the group difference of Part D
+    Returns (y, shifts, wtrue): shifts in units of the normalised domain, wtrue the (J,Q) warps
+    applied to the pulse (identity when wsd == 0)."""
     noise = power1d.noise.SmoothGaussian(J=J, Q=Q, mu=0, sigma=1, fwhm=NOISE_FWHM)
     noise.random()
     y      = noise.value.copy()
     shifts = np.zeros(J)
+    wtrue  = np.tile(TGRID, (J, 1))
     if amp > 0:
-        dq = np.clip(np.round(rng.normal(0, jsd, J)), -30, 30).astype(int)
+        dq = np.clip(np.round(rng.normal(0, qsd, J)), -30, 30).astype(int) if qsd > 0 else np.zeros(J, int)
+        if wsd > 0:
+            wtrue = reg1d.random_warp(J, Q, sigma=wsd, n_basis=3, random_state=int(rng.integers(2**31)))
+        wd = TGRID + delta * np.sin(np.pi * TGRID)
         for i in range(J):
-            y[i] += power1d.geom.GaussianPulse(Q=Q, q=int(50 + dq[i]), fwhm=fwhm, amp=amp).value
+            sig = power1d.geom.GaussianPulse(Q=Q, q=int(50 + dq[i]), fwhm=fwhm, amp=amp).value
+            if delta != 0:
+                sig = reg1d.warp.apply_warp(sig, wd)
+            if wsd > 0:
+                sig = reg1d.warp.apply_warp(sig, wtrue[i])
+            y[i] += sig
         shifts = dq / (Q - 1)
-    return y, shifts
+    return y, shifts, wtrue
 
 def register(y, method):
     if method == 'none':
@@ -113,62 +157,93 @@ def register(y, method):
         r = reg1d.register_sim(y, n_basis=4, max_iter=2)
     return r.y, r
 
+def _r2(a, b):
+    """Squared correlation between two flattened arrays (nan if either is constant)."""
+    a, b = np.asarray(a, float).ravel(), np.asarray(b, float).ravel()
+    if a.std() == 0 or b.std() == 0:
+        return np.nan
+    return np.corrcoef(a, b)[0, 1]**2
+
 def one_dataset(args):
-    """Simulate one dataset and register it with every method; returns per-method metrics."""
-    J, amp, fwhm, jsd, seed = args
+    """Simulate one dataset and register it with every method; returns per-method metrics.
+    two=False: one-sample design (J observations).
+    two=True : two-sample design (J observations per group; group B carries the timing
+               difference delta); statistics are two-tailed max |t|."""
+    J, amp, fwhm, qsd, wsd, delta, two, seed = args
     rng      = np.random.default_rng(seed)
     np.random.seed(seed)          # power1d draws from numpy's global generator
-    y, s     = make_dataset(J, amp, fwhm, jsd, rng)
+    if two:
+        yA, sA, wA = make_dataset(J, amp, fwhm, qsd, wsd, 0.0,   rng)
+        yB, sB, wB = make_dataset(J, amp, fwhm, qsd, wsd, delta, rng)
+        y, s, wtrue = np.vstack([yA, yB]), np.r_[sA, sB], np.vstack([wA, wB])
+    else:
+        y, s, wtrue = make_dataset(J, amp, fwhm, qsd, wsd, delta, rng)
     sse0     = ((y - y.mean(axis=0))**2).sum()
+    dtrue    = wtrue - TGRID
     out      = {}
     for m in METHODS:
         try:
             yr, r = register(y, m)
         except Exception:
             yr, r = y, None
-        t     = power1d.stats.t_1sample(yr)
-        est   = np.zeros(J) if r is None else r.warps.asarray()[:, (Q - 1) // 2] - 0.5
-        r2    = np.nan
-        if s.std() > 0 and est.std() > 0:
-            r2 = np.corrcoef(s, est)[0, 1]**2
-        out[m] = dict(tmax=float(t.max()), t=t.astype(np.float32),
+        d = np.zeros_like(y) if r is None else r.displacement_fields
+        if two:
+            t   = np.abs(power1d.stats.t_2sample(yr[:J], yr[J:]))
+            td  = np.abs(power1d.stats.t_2sample(d[:J], d[J:]))
+            td  = np.where(np.isfinite(td), td, 0.0)      # displacement is identically zero at the end points
+        else:
+            t   = power1d.stats.t_1sample(yr)
+            td  = np.zeros(Q)
+        est = np.zeros(len(y)) if r is None else r.warps.asarray()[:, (Q - 1) // 2] - 0.5
+        if qsd > 0:
+            r2 = _r2(s, est)
+        elif wsd > 0:
+            r2 = _r2(dtrue - dtrue.mean(axis=0), d - d.mean(axis=0))
+        else:
+            r2 = np.nan
+        out[m] = dict(tmax=float(t.max()), tdmax=float(td.max()), t=t.astype(np.float32),
                       sse=float(((yr - yr.mean(axis=0))**2).sum() / sse0),
                       peak=float(yr.mean(axis=0).max()), r2=r2, y=yr.astype(np.float32))
     return out
 
-def simulate(J, amp, fwhm, jsd, n, seed0, workers=2):
-    """n datasets of one condition; returns dict method -> dict of stacked metrics."""
+def simulate(J, amp, fwhm, qsd, wsd, delta, two, n, seed0, workers=2):
+    """n datasets of one condition; returns dict method -> dict of stacked metrics (+ 'n')."""
     from multiprocessing import Pool
-    args = [(J, amp, fwhm, jsd, seed0 + i)  for i in range(n)]
+    args = [(J, amp, fwhm, qsd, wsd, delta, two, seed0 + i)  for i in range(n)]
     t0   = time.time()
     with Pool(workers) as pool:
         res = pool.map(one_dataset, args, chunksize=1)
-    out = {}
+    out = dict(n=n)
     for m in METHODS:
-        out[m] = dict(tmax=np.array([r[m]['tmax'] for r in res]), t=np.array([r[m]['t'] for r in res]),
-                      sse=np.array([r[m]['sse'] for r in res]), peak=np.array([r[m]['peak'] for r in res]),
-                      r2=np.array([r[m]['r2'] for r in res]), y_example=res[0][m]['y'])
-    print(f'J={J:3d} amp={amp:<4g} fwhm={fwhm:<3g} jsd={jsd:<4g}  n={n}  ({time.time()-t0:6.0f} s)', flush=True)
+        out[m] = {k: np.array([r[m][k] for r in res])  for k in ('tmax', 'tdmax', 't', 'sse', 'peak', 'r2')}
+        out[m]['y_example'] = res[0][m]['y']
+    print(f'J={J:3d} amp={amp:<4g} fwhm={fwhm:<3g} qsd={qsd:<4g} wsd={wsd:<4g} delta={delta:<5g} '
+          f'{"two" if two else "one"}-sample  n={n}  ({time.time()-t0:6.0f} s)', flush=True)
     return out
 
-BASE   = dict(J=10, amp=1.0, fwhm=20, jsd=5.0)
-NULLS  = [dict(J=J, amp=0.0, fwhm=20, jsd=0.0)  for J in (5, 10, 20, 50)]
-ALTS   = []
+def key(c):  return (c['J'], c['amp'], c['fwhm'], c['qsd'], c['wsd'], c['delta'], c['two'])
+
+BASE  = dict(J=10, amp=1.0, fwhm=20, qsd=5.0, wsd=0.0, delta=0.0, two=False)
+NULLS = [dict(BASE, J=J, amp=0.0, qsd=0.0)  for J in (5, 10, 20, 50)]
+ALTS  = []
 for amp in (0.5, 1.0, 2.0, 4.0):    ALTS.append(dict(BASE, amp=amp))
 for fwhm in (10, 40):               ALTS.append(dict(BASE, fwhm=fwhm))
-for jsd in (0.0, 2.5, 10.0):        ALTS.append(dict(BASE, jsd=jsd))
+for qsd in (0.0, 2.5, 10.0):        ALTS.append(dict(BASE, qsd=qsd))
 for J in (5, 20, 50):               ALTS.append(dict(BASE, J=J))
+WARPS = [dict(BASE, qsd=0.0, wsd=wsd)  for wsd in (0.05, 0.1, 0.2)]      # wsd = 0 is the qsd = 0 condition of Part B
+WARPS += [dict(BASE, amp=2.0, qsd=0.0, wsd=wsd)  for wsd in (0.0, 0.1, 0.2)] # the same at twice the amplitude
+TWOS  = [dict(BASE, amp=2.0, qsd=0.0, wsd=0.1, delta=delta, two=True)  for delta in (0.0, 0.05, 0.1)]
 
-def key(c):  return (c['J'], c['amp'], c['fwhm'], c['jsd'])
-
-def run_all(n_null=100, n_alt=60):
+def run_all(n_null=N_NULL, n_alt=N_ALT, n_warp=N_WARP, n_two=N_TWO):
+    """Run (or load from the cache) every condition; a cached condition is re-run only when it
+    holds fewer datasets than requested, so increasing the N_* constants refines the results."""
     results = {}
     if os.path.exists(CACHE):
         with open(CACHE, 'rb') as f:
             results = pickle.load(f)
-    todo = [(c, n_null) for c in NULLS] + [(c, n_alt) for c in ALTS]
+    todo = [(c, n_null) for c in NULLS] + [(c, n_alt) for c in ALTS] + [(c, n_warp) for c in WARPS] + [(c, n_two) for c in TWOS]
     for k, (c, n) in enumerate(todo):
-        if key(c) in results:
+        if key(c) in results and results[key(c)]['n'] >= n:
             continue
         results[key(c)] = simulate(n=n, seed0=1000 * k, **c)
         with open(CACHE, 'wb') as f:
@@ -176,7 +251,12 @@ def run_all(n_null=100, n_alt=60):
     return results
 
 if __name__ == '__main__' and '--simulate' in sys.argv:
-    run_all()
+    kw = {}
+    for name in ('n_null', 'n_alt', 'n_warp', 'n_two'):
+        flag = '--' + name.replace('_', '-')
+        if flag in sys.argv:
+            kw[name] = int(sys.argv[sys.argv.index(flag) + 1])
+    run_all(**kw)
 '''
 
 
@@ -199,7 +279,8 @@ smooth Gaussian random fields with no common structure; the registered panels sh
 method makes of them.
 '''))
     cells.append(code('''
-res = results[(10, 0.0, 20, 0.0)]
+res = results[(10, 0.0, 20, 0.0, 0.0, 0.0, False)]
+print(f"Part A: {res['n']} simulated null datasets per sample size")
 fig, AX = plt.subplots(2, 3, figsize=(14, 6.5), sharex=True, sharey=True)
 t = np.linspace(0, 100, Q)
 for ax, m in zip(AX.ravel(), METHODS):
@@ -223,13 +304,14 @@ keep α = 0.05 after registration.
 '''))
     cells.append(code('''
 Js = [5, 10, 20, 50]
+print('Part A: null datasets per sample size:', {J: results[(J, 0.0, 20, 0.0, 0.0, 0.0, False)]['n'] for J in Js})
 fig, AX = plt.subplots(1, 3, figsize=(15, 4.2))
 zstar = {}
 for m in METHODS:
     sse, fpr, zs = [], [], []
     for J in Js:
-        res  = results[(J, 0.0, 20, 0.0)]
-        z0   = np.percentile(results[(J, 0.0, 20, 0.0)]['none']['tmax'], 100 * (1 - ALPHA))
+        res  = results[(J, 0.0, 20, 0.0, 0.0, 0.0, False)]
+        z0   = np.percentile(results[(J, 0.0, 20, 0.0, 0.0, 0.0, False)]['none']['tmax'], 100 * (1 - ALPHA))
         zs.append(np.percentile(res[m]['tmax'], 100 * (1 - ALPHA)))
         fpr.append((res[m]['tmax'] > z0).mean())
         sse.append(res[m]['sse'].mean())
@@ -248,8 +330,8 @@ plt.tight_layout(); plt.show()
 print(f"{'J':>3s} " + ' '.join(f'{m:>15s}' for m in METHODS))
 print('false-positive rate at the unregistered threshold:')
 for J in Js:
-    z0 = np.percentile(results[(J, 0.0, 20, 0.0)]['none']['tmax'], 100 * (1 - ALPHA))
-    print(f'{J:3d} ' + ' '.join(f"{(results[(J, 0.0, 20, 0.0)][m]['tmax'] > z0).mean():15.2f}" for m in METHODS))
+    z0 = np.percentile(results[(J, 0.0, 20, 0.0, 0.0, 0.0, False)]['none']['tmax'], 100 * (1 - ALPHA))
+    print(f'{J:3d} ' + ' '.join(f"{(results[(J, 0.0, 20, 0.0, 0.0, 0.0, False)][m]['tmax'] > z0).mean():15.2f}" for m in METHODS))
 print('calibrated threshold zstar:')
 for J in Js:
     print(f'{J:3d} ' + ' '.join(f'{zstar[(J, m)]:15.2f}' for m in METHODS))
@@ -263,7 +345,7 @@ The whole null distribution, not only its 95th percentile: the unregistered maxi
     cells.append(code('''
 fig, AX = plt.subplots(1, 2, figsize=(13, 4))
 for ax, J in zip(AX, (10, 50)):
-    res  = results[(J, 0.0, 20, 0.0)]
+    res  = results[(J, 0.0, 20, 0.0, 0.0, 0.0, False)]
     bins = np.linspace(0, max(res[m]['tmax'].max() for m in METHODS) * 1.05, 40)
     for m in METHODS:
         ax.hist(res[m]['tmax'], bins=bins, histtype='step', color=COLORS[m], lw=1.5, label=m)
@@ -284,7 +366,7 @@ unregistered noise).
     cells.append(code('''
 fig, AX = plt.subplots(1, 2, figsize=(13, 4), sharey=True)
 for ax, J in zip(AX, (10, 50)):
-    res = results[(J, 0.0, 20, 0.0)]
+    res = results[(J, 0.0, 20, 0.0, 0.0, 0.0, False)]
     for m in METHODS:
         ax.plot(t, res[m]['t'].mean(axis=0), color=COLORS[m], label=m)
     ax.axhline(0, color='k', ls=':'); ax.set_title(f'J = {J}: mean t continuum over null datasets', size=10)
@@ -298,12 +380,13 @@ plt.tight_layout(); plt.show()
 
 ### The base condition
 
-One dataset of the base condition (J = 10, amp = 1, fwhm = 20, jsd = 5): a unit-amplitude pulse
+One dataset of the base condition (J = 10, amp = 1, fwhm = 20, qsd = 5): a unit-amplitude pulse
 of the same width as the noise's correlation length, with its centre jittered by about five
 nodes. The true signal (mean pulse shape at the nominal centre) is shown dashed.
 '''))
     cells.append(code('''
 res = results[key(BASE)]
+print(f"Part B: {res['n']} simulated datasets per condition")
 sig = power1d.geom.GaussianPulse(Q=Q, q=50, fwhm=BASE['fwhm'], amp=BASE['amp']).value
 fig, AX = plt.subplots(2, 3, figsize=(14, 6.5), sharex=True, sharey=True)
 for ax, m in zip(AX.ravel(), METHODS):
@@ -324,7 +407,8 @@ each method comes from its own registered null distribution at the same J). Midd
 of the cross-sectional mean relative to the true amplitude (1 = the amplitude is recovered;
 below 1 = smeared by position variability or noise; above 1 = inflated by aligned noise).
 Right: squared correlation between true and estimated pulse displacements (how much of the
-imposed timing variability the warps recover; blank where jsd = 0).
+imposed timing variability the warps recover; blank where qsd = 0). The number of simulated
+datasets per condition is printed above the figure.
 '''))
     cells.append(code('''
 def power(c, m):
@@ -333,8 +417,9 @@ def power(c, m):
 
 sweeps = [('amp',  [0.5, 1.0, 2.0, 4.0], 'signal amplitude (noise SD units)'),
           ('fwhm', [10, 20, 40],          'signal breadth  fwhm (% of domain)'),
-          ('jsd',  [0.0, 2.5, 5.0, 10.0], 'position variability  jsd (% of domain)'),
+          ('qsd',  [0.0, 2.5, 5.0, 10.0], 'position variability  qsd (nodes)'),
           ('J',    [5, 10, 20, 50],       'sample size J')]
+print('Part B: datasets per condition:', sorted({results[key(dict(BASE, **{n: v}))]['n'] for n, vv, _ in sweeps for v in vv}))
 fig, AX = plt.subplots(4, 3, figsize=(15, 15))
 for row, (name, values, label) in zip(AX, sweeps):
     for m in METHODS:
@@ -385,7 +470,7 @@ plt.tight_layout(); plt.show()
 ### Mean t continua with the signal present
 
 Where the evidence for the signal sits after registration, for the amplitude sweep (J = 10,
-fwhm = 20, jsd = 5). The dotted horizontal line is the unregistered threshold; the coloured
+fwhm = 20, qsd = 5). The dotted horizontal line is the unregistered threshold; the coloured
 dotted lines are each method's calibrated threshold.
 '''))
     cells.append(code('''
@@ -400,8 +485,147 @@ AX[0].set_ylabel('mean t continuum'); AX[0].legend(fontsize=7)
 plt.tight_layout(); plt.show()
 '''))
 
+    cells.append(md("""
+## Part C: signal plus random warp
+
+Position shifts are a crude form of timing variability. Here the base pulse (J = 10, amp = 1,
+fwhm = 20, no position shift) is deformed by a random warp per observation
+(`reg1d.random_warp`, three basis functions, strength `wsd`; wsd = 0.1 displaces the pulse
+centre by about 4.5 nodes SD, comparable to qsd = 5 of Part B, but also stretches and compresses
+the pulse). This is the timing variability that elastic methods are built to remove. The
+quantities are those of Part B; timing recovery is now the squared correlation between the true
+and estimated displacement *fields* (after removing the per-node mean across observations,
+since the estimated warps are centred).
+
+The sweep is run at the base amplitude (amp = 1, top row) and at twice the noise SD (amp = 2,
+bottom row), where the warps have a signal to work on.
+
+**Warning: approximate results.** N_WARP datasets per condition (printed below), so power and
+the recovery measures carry a sampling uncertainty of roughly ±0.1; the section is intended to
+point in a direction, not to fix values. The wsd = 0 point at amp = 1 is the qsd = 0 condition
+of Part B.
+"""))
+    cells.append(code("""
+fig, AX = plt.subplots(2, 4, figsize=(17, 7.5))
+for row, amp, wsds in zip(AX, (1.0, 2.0), ([0.0, 0.05, 0.1, 0.2], [0.0, 0.1, 0.2])):
+    conds = [dict(BASE, amp=amp, qsd=0.0, wsd=w) for w in wsds]
+    print(f'Part C, amp = {amp}: datasets per condition:', [results[key(c)]['n'] for c in conds], '(wsd =', wsds, ')')
+    for m in METHODS:
+        row[0].plot(wsds, [power(c, m) for c in conds], 'o-', color=COLORS[m], label=m)
+        row[1].plot(wsds, [(results[key(c)][m]['tmax'] > zstar[(c['J'], 'none')]).mean() for c in conds], 'o-', color=COLORS[m])
+        row[2].plot(wsds, [results[key(c)][m]['peak'].mean() / c['amp'] for c in conds], 'o-', color=COLORS[m])
+        row[3].plot(wsds, [np.nanmean(results[key(c)][m]['r2']) for c in conds], 'o-', color=COLORS[m])
+    row[0].set_ylabel(f'amp = {amp}: power (calibrated)');   row[0].set_ylim(0, 1.02)
+    row[1].set_ylabel('power at the unregistered threshold'); row[1].set_ylim(0, 1.02)
+    row[2].set_ylabel('peak of mean / amp');                 row[2].axhline(1, color='k', ls=':')
+    row[3].set_ylabel('warp recovery r² (displacement fields)'); row[3].set_ylim(0, 1.02)
+    for ax in row: ax.set_xlabel('random-warp strength  wsd')
+AX[0, 0].legend(fontsize=8)
+plt.tight_layout(); plt.show()
+print(f"{'amp':>4s} {'wsd':>6s} " + ' '.join(f'{m:>15s}' for m in METHODS))
+for amp, wsds in ((1.0, [0.0, 0.05, 0.1, 0.2]), (2.0, [0.0, 0.1, 0.2])):
+    for c in [dict(BASE, amp=amp, qsd=0.0, wsd=w) for w in wsds]:
+        print(f"{amp:4g} {c['wsd']:6g} " + ' '.join(f'{power(c, m):15.2f}' for m in METHODS) + '   (calibrated power)')
+"""))
+    cells.append(md("""
+One dataset of the strongest random-warp condition (wsd = 0.2) before and after registration;
+the dashed line is the undeformed pulse.
+"""))
+    cells.append(code("""
+res = results[key(dict(BASE, qsd=0.0, wsd=0.2))]
+fig, AX = plt.subplots(2, 3, figsize=(14, 6.5), sharex=True, sharey=True)
+for ax, m in zip(AX.ravel(), METHODS):
+    y = res[m]['y_example']
+    ax.plot(t, y.T, color=COLORS[m], lw=0.8, alpha=0.7)
+    ax.plot(t, y.mean(axis=0), color='k', lw=2.5)
+    ax.plot(t, sig, 'k--', lw=1.5)
+    ax.set_title(f"{m}   (peak/amp {res[m]['peak'].mean():.2f}, warp r² {np.nanmean(res[m]['r2']):.2f})", size=10)
+for ax in AX[1]: ax.set_xlabel('domain (%)')
+plt.suptitle('Random-warp condition wsd = 0.2 (J = 10, amp = 1, fwhm = 20)', size=11)
+plt.tight_layout(); plt.show()
+"""))
+
+    cells.append(md("""
+## Part D: true timing differences
+
+A two-sample design (J = 10 per group) in which both groups carry the pulse (amp = 2, fwhm = 20)
+deformed by the random warps of Part C (wsd = 0.1), and group B's pulse is additionally displaced
+by a fixed smooth warp t + δ sin(πt) — a true timing difference between the groups that moves
+the peak by about δ of the domain (δ ∈ {0, 0.05, 0.1}; δ = 0 is the null). All 2J observations are
+registered together to one pooled template, and two two-tailed max |t| statistics are recorded:
+the two-sample test on the registered amplitudes (which a registration that removes the timing
+difference should *lose*) and the two-sample test on the displacement fields (which should
+*gain* it; undefined for `none`). Thresholds are calibrated per method and per test from the
+δ = 0 datasets.
+
+**Warning: approximate results.** N_TWO datasets per condition (printed below), and the
+calibrated thresholds come from the same number of null datasets, so all rates are uncertain by
+roughly ±0.1 and the δ = 0 columns are 0.05 only by construction. Refine with larger `N_TWO`.
+"""))
+    cells.append(code("""
+deltas = [0.0, 0.05, 0.1]
+conds  = [dict(BASE, amp=2.0, qsd=0.0, wsd=0.1, delta=d, two=True) for d in deltas]
+print('Part D: datasets per condition:', [results[key(c)]['n'] for c in conds], '(delta =', deltas, ')')
+null   = results[key(conds[0])]
+zA     = {m: np.percentile(null[m]['tmax'],  100 * (1 - ALPHA)) for m in METHODS}   # amplitude test
+zD     = {m: np.percentile(null[m]['tdmax'], 100 * (1 - ALPHA)) for m in METHODS}   # displacement-field test
+fig, AX = plt.subplots(1, 3, figsize=(15, 4))
+for m in METHODS:
+    pA = [(results[key(c)][m]['tmax']  > zA[m]).mean() for c in conds]
+    pN = [(results[key(c)][m]['tmax']  > zA['none']).mean() for c in conds]
+    AX[0].plot(deltas, pA, 'o-', color=COLORS[m], label=m)
+    AX[1].plot(deltas, pN, 'o-', color=COLORS[m])
+    if m != 'none':
+        pD = [(results[key(c)][m]['tdmax'] > zD[m]).mean() for c in conds]
+        AX[2].plot(deltas, pD, 'o-', color=COLORS[m])
+AX[0].set_title('amplitude test (registered data), calibrated', size=10)
+AX[1].set_title('amplitude test at the unregistered threshold', size=10)
+AX[2].set_title('displacement-field test (timing), calibrated', size=10)
+for ax in AX:
+    ax.set_xlabel('true timing difference  delta (fraction of domain)'); ax.set_ylim(0, 1.02); ax.axhline(ALPHA, color='k', ls=':')
+AX[0].set_ylabel('power'); AX[0].legend(fontsize=8)
+plt.tight_layout(); plt.show()
+print(f"{'delta':>6s} " + ' '.join(f'{m:>15s}' for m in METHODS))
+for c in conds:
+    print(f"{c['delta']:6g} " + ' '.join(f"{(results[key(c)][m]['tmax'] > zA[m]).mean():15.2f}" for m in METHODS) + '   amplitude test, calibrated')
+    print(f"{'':>6s} " + ' '.join(f"{(results[key(c)][m]['tdmax'] > zD[m]).mean() if m != 'none' else float('nan'):15.2f}" for m in METHODS) + '   displacement-field test, calibrated')
+print('calibrated thresholds, amplitude test:   ', {m: round(v, 2) for m, v in zA.items()})
+print('calibrated thresholds, displacement test:', {m: round(v, 2) for m, v in zD.items()})
+"""))
+    cells.append(md("""
+One dataset with δ = 0.1: group A black, group B red; the mean |t| continua of the amplitude
+test (left) and of the displacement-field test (right) over the simulated datasets, with the
+calibrated thresholds dotted.
+"""))
+    cells.append(code("""
+c   = conds[-1]; res = results[key(c)]; J = c['J']
+fig, AX = plt.subplots(2, 3, figsize=(14, 6.5), sharex=True, sharey=True)
+for ax, m in zip(AX.ravel(), METHODS):
+    y = res[m]['y_example']
+    ax.plot(t, y[:J].T, color='k', lw=0.8, alpha=0.6); ax.plot(t, y[J:].T, color='r', lw=0.8, alpha=0.6)
+    ax.plot(t, y[:J].mean(axis=0), 'k', lw=2.5); ax.plot(t, y[J:].mean(axis=0), 'r', lw=2.5)
+    ax.set_title(m, size=10)
+for ax in AX[1]: ax.set_xlabel('domain (%)')
+plt.suptitle(f"delta = {c['delta']}: one two-sample dataset after each method (thick: group means)", size=11)
+plt.tight_layout(); plt.show()
+fig, AX = plt.subplots(1, 2, figsize=(13, 4))
+for m in METHODS:
+    AX[0].plot(t, res[m]['t'].mean(axis=0), color=COLORS[m], label=m); AX[0].axhline(zA[m], color=COLORS[m], ls=':', lw=0.8)
+AX[0].set_title('mean |t| continuum, amplitude test', size=10); AX[0].set_xlabel('domain (%)'); AX[0].legend(fontsize=7)
+AX[1].set_title('displacement-field test: calibrated thresholds and mean max |t|', size=10)
+for k, m in enumerate(METHODS[1:]):
+    AX[1].bar(k, res[m]['tdmax'].mean(), color=COLORS[m]); AX[1].plot([k-0.4, k+0.4], [zD[m]]*2, 'k:')
+AX[1].set_xticks(range(len(METHODS)-1)); AX[1].set_xticklabels(METHODS[1:], rotation=20, fontsize=8); AX[1].set_ylabel('max |t|')
+plt.tight_layout(); plt.show()
+"""))
+
     cells.append(md('''
 ## Summary
+
+**Simulation sizes.** Part A: N_NULL = 100 null datasets per sample size; Part B: N_ALT = 60
+datasets per condition; Parts C and D: 30 datasets per condition (approximate). The numbers are
+printed in every results section and can be increased by re-running `make_power_notebook.py
+--simulate` with larger sizes (see the preamble).
 
 **False-positive rate (Part A).** Registration introduces geometric regularity into pure noise,
 and the effect grows with sample size rather than shrinking. At the unregistered α = 0.05
@@ -420,28 +644,50 @@ that a test applied after registration must be recalibrated (the critical thresh
 2-3.5 times the unregistered one), for instance by a permutation scheme that re-registers each
 permuted dataset, or the registration must be shown to be justified before the test.
 
-**Power (Part B).** With thresholds calibrated per method, no registration method exceeded the
-power of the unregistered test in any condition studied: at the base condition (J = 10, unit
-amplitude, signal as wide as the noise correlation length, five-node position jitter) the
-unregistered power is 0.62 against 0.20-0.27 for SRSF and DTW and 0.50 for continuous
-registration, and the ordering is the same for narrower and wider pulses, for no jitter, and for
-twice the jitter. The methods converge as amplitude grows (at four noise SDs every method has
-power 1, recovers the amplitude within 1 % and recovers 90 % of the imposed timing variance) and
-as J grows (J = 50: 0.83-0.97 against 1.00), i.e. registration approaches, but does not beat, the
-unregistered test in this design. Convergence with decreasing position variability does not
-occur: with no jitter at all the registered methods still lose power (0.17 against 0.63),
-because calibration for the regularity they introduce costs more than the alignment gains.
-Read without calibration, the picture inverts — registered "power" is 0.9-1.0 at unit amplitude —
-which is exactly the inflation seen in Part A and not evidence for the signal.
+**Power with position shifts (Part B).** With thresholds calibrated per method, no registration
+method exceeded the power of the unregistered test in any condition studied: at the base
+condition (J = 10, unit amplitude, signal as wide as the noise correlation length, five-node
+position jitter) the unregistered power is 0.62 against 0.20-0.27 for SRSF and DTW and 0.50 for
+continuous registration, and the ordering is the same for narrower and wider pulses, for no
+jitter, and for twice the jitter. The methods converge as amplitude grows (at four noise SDs
+every method has power 1, recovers the amplitude within 1 % and recovers 90 % of the imposed
+timing variance) and as J grows (J = 50: 0.83-0.97 against 1.00), i.e. registration approaches,
+but does not beat, the unregistered test in this design. Convergence with decreasing position
+variability does not occur: with no jitter at all the registered methods still lose power (0.17
+against 0.63), because calibration for the regularity they introduce costs more than the
+alignment gains. Read without calibration, the picture inverts — registered "power" is 0.9-1.0 at
+unit amplitude — which is exactly the inflation seen in Part A and not evidence for the signal.
+
+**Power with random warps (Part C, approximate).** Replacing the position shift by random
+warps of the signal — the deformation elastic methods are designed to undo — does not change the
+picture at unit amplitude: unregistered power 0.43-0.77 against 0.13-0.40 for SRSF and DTW,
+with SRSF flat at 0.17 whatever the warp strength, and warp recovery r² below 0.2. At twice the
+noise SD the methods converge (0.67-0.93 against 0.93-1.00), the elastic methods keep their
+power as the warps strengthen while the unregistered test and the self-modelling method lose
+some (wsd = 0.2: DDTW 0.90, SRSF 0.70-0.80, none 0.93), and derivative DTW recovers a third of the
+imposed warp variance. The direction is the expected one — elastic registration pays off when
+the signal dominates the noise and timing variability is large — but within these ranges it
+never overtakes the unregistered test in a one-sample design.
+
+**True timing differences (Part D, approximate).** In the two-sample design the roles separate
+as they should: registration to a pooled template removes the group timing difference from
+the registered amplitudes (amplitude-test power at δ = 0.1 falls from 0.30 unregistered to
+0.03-0.07 after SRSF and DTW registration) and moves it into the warps, where the
+displacement-field test detects it with power 0.47-0.77 (SRSF 0.47-0.53, derivative DTW 0.77)
+against the 0.30 of the unregistered amplitude test. Continuous registration does not transfer
+the difference (0.03) and the self-modelling method only weakly (0.20). This is the case for
+registration in hypothesis testing: a *timing* effect is found by testing the warps, not the
+registered amplitudes, and with a null calibrated for the method. With 30 datasets per condition
+the numbers are indicative only.
 
 **Signal recovery.** Amplitude recovery separates the methods more clearly than power does.
 SRSF and DTW inflate the peak of the mean by 30-40 % at unit amplitude and by more than a factor
 of two at half the noise SD, by aligning noise extrema onto the pulse; the inflation vanishes at
 four noise SDs. The unregistered mean is attenuated by position jitter (to 0.80 at ten nodes of
-jitter) but never inflated; continuous registration is roughly unbiased at unit amplitude and
-self-modelling under-estimates the amplitude (its scale parameters shrink observations towards
-the template). Timing recovery (r² between the true and estimated pulse displacements) is low
-at unit amplitude (0.1-0.2), best for derivative DTW when the pulse is narrow (0.65 at
+jitter) or by random warps (0.76 at wsd = 0.2, amp = 2) but never inflated; continuous
+registration is roughly unbiased at unit amplitude and self-modelling under-estimates the
+amplitude (its scale parameters shrink observations towards the template). Timing recovery is
+low at unit amplitude (0.1-0.2), best for derivative DTW when the pulse is narrow (0.65 at
 fwhm = 10), and rises to about 0.9 for SRSF and DTW at four noise SDs: the warps recover the
 timing structure only once the signal dominates the noise, and at realistic amplitudes most of
 the estimated displacement is noise alignment.
@@ -454,11 +700,12 @@ surrogate noise of the same smoothness. (2) The default `lam='auto'` does not pr
 noise alignment; a penalty strong enough to do so would have to scale with the noise, not with
 the signal's total variation, which argues for a penalty chosen by a null-based criterion
 (e.g. the smallest `lam` at which the false-positive rate on surrogate data returns to nominal).
-(3) `reg1d.stats` should offer a permutation test in which registration is inside the
-permutation loop, since only that keeps α when the analysis includes registration. (4) These
-simulations cover the one-sample, single-pulse case at one noise smoothness; the two-sample case
-with a *group difference in timing*, where registration converts a timing effect into a warp
-effect, is the case in which registration can gain power and is the natural next simulation.
+(3) The permutation tests in `notebooks/util.py` should put registration inside the permutation
+loop, since only that keeps α when the analysis includes registration. (4) Part D should be
+refined (larger N_TWO, a sweep of amplitude and of the warp variability, the self-modelling and
+Bayesian methods) before conclusions about which method transfers timing effects most
+faithfully; the amplitude-versus-timing decomposition, not one-sample detection, is where
+registration earns its place.
 '''))
     return cells
 
