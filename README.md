@@ -7,6 +7,14 @@ It depends only on `numpy`, `scipy` and `matplotlib`; the registration
 algorithms are implemented from their mathematical definitions, so no other
 registration package needs to be installed.
 
+
+
+**AI disclosure**:  this repository was co-developed with Claude Fable 5.1.  The package concept was human, but Claude did all of the algorithm coding, with only high-level human guidance. Claude's contributions can be seen in the commit list. In interest of full disclosure, a full transcript of the Claude conversation that produced this repository and its developments will be provided at a later date, when we are ready to create a release version.
+
+
+
+
+
 ## Installation (development)
 
     git clone https://github.com/0todd0000/registration1d.git
@@ -27,11 +35,11 @@ The recommended import convention is `import registration1d as reg1d`;
 the short alias is used throughout the documentation and notebooks.
 
     import registration1d as reg1d
-
+    
     dataset = reg1d.data.Dorn2012()                     # 8 observations of unequal length
     yi      = reg1d.register_linear(dataset.y, n=101).y # (8,101) linearly registered
     yr, wf  = reg1d.register_srsf(yi, max_iter=5)       # nonlinearly registered + warps
-
+    
     result  = reg1d.register_srsf(yi, t=np.linspace(0, 100, 101))   # explicit time grid (% stance)
     result.plot(group=dataset.group)                    # before / after / warps
     result.apply(other_variable)                        # same warps applied to another (8,101) variable
